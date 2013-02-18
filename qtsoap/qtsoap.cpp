@@ -3152,6 +3152,8 @@ void QtSoapHttpTransport::submitRequest(QtSoapMessage &request, const QString &p
     QNetworkRequest networkReq;
     networkReq.setHeader(QNetworkRequest::ContentTypeHeader, QLatin1String("text/xml;charset=utf-8"));
     networkReq.setRawHeader("SOAPAction", soapAction.toAscii());
+    // Bad Things™ may happen if we tell NuSOAP that we will accept compressed content
+    networkReq.setRawHeader("Accept-Encoding", "none");
     url.setPath(path);
     networkReq.setUrl(url);
 
