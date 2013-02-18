@@ -130,7 +130,7 @@ void SugarSoap::getResponse()
     }
     else
     {
-      qDebug("%d contacts", response["entry_list"].count());
+      qDebug("%d contacts", response["result_count"].toInt());
       // Iterate over entries
       for (int i=0; i<response["entry_list"].count(); i++)
       {
