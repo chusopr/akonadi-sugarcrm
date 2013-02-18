@@ -1216,15 +1216,17 @@ QDomElement QtSoapArray::toDomElement(QDomDocument doc) const
 	int pos0, pos1, pos2, pos3, pos4;
 	i.pos(&pos0, &pos1, &pos2, &pos3, &pos4);
 
-	QString position = "[" + QString::number(pos0);
+        // WTF? It seems that NuSOAP will do Bad Things™ (again) if
+        // we include the position of each array element
+	/*QString position = "[" + QString::number(pos0);
 	if (order > 1) position += "," + QString::number(pos1);
 	if (order > 2) position += "," + QString::number(pos2);
 	if (order > 3) position += "," + QString::number(pos3);
 	if (order > 4) position += "," + QString::number(pos4);
-	position += "]";
+	position += "]";*/
 
 	QString envprefix = QtSoapNamespaces::instance().prefixFor(SOAPv11_ENVELOPE);
-	item.setAttributeNS(SOAPv11_ENVELOPE, envprefix + ":position", position);
+	//item.setAttributeNS(SOAPv11_ENVELOPE, envprefix + ":position", position);
 	a.appendChild(item);
     }
 
