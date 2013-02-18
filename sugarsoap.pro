@@ -2,7 +2,7 @@ TEMPLATE = app
 INCLUDEPATH += .
 CONFIG += console
 
-include(../src/qtsoap.pri)
+include(qtsoap/qtsoap.pri)
 
 HEADERS += sugarsoap.h
 SOURCES += main.cpp sugarsoap.cpp

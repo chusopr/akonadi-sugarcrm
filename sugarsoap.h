@@ -8,7 +8,7 @@
 
 #ifndef SUGARSOAP_H
 #define SUGARSOAP_H
-#include <qtsoap.h>
+#include <qtsoap/qtsoap.h>
 
 class SugarSoap : public QObject
 {
