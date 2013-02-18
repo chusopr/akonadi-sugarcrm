@@ -87,16 +87,16 @@ void SugarSoap::getLoginResponse()
       // Set the method and add one argument.
       soap_request.setMethod("get_entry_list");
 
-      /* It seems that Sugar CRM doesn't handle this parameter correctly...
-       * ...or am I doing it wrong?
       QtSoapArray *select_fields = new QtSoapArray(QtSoapQName("select_fields"), QtSoapType::String, 3);
       select_fields->insert(0, new QtSoapSimpleType(QtSoapQName("first_name"), "first_name"));
       select_fields->insert(1, new QtSoapSimpleType(QtSoapQName("last_name"), "last_name"));
       select_fields->insert(2, new QtSoapSimpleType(QtSoapQName("email1"), "email1"));
-      request.addMethodArgument(select_fields);
-      */
       soap_request.addMethodArgument("session", "", session_id);
       soap_request.addMethodArgument("module_name", "", "Contacts");
+      soap_request.addMethodArgument("query", "", "");
+      soap_request.addMethodArgument("order_by", "", "");
+      soap_request.addMethodArgument("offset", "", "");
+      soap_request.addMethodArgument(select_fields);
       soap_request.addMethodArgument("max_results", "", 10);
       soap_request.addMethodArgument("deleted", "", 0);
 
