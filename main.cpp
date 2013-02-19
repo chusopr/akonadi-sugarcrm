@@ -8,19 +8,16 @@
 
 #include <QApplication>
 #include "sugarsoap.h"
+#include "sugarcrmresource.h"
 
 int main(int argc, char **argv)
 {
-  if (argc < 4)
+  if (argc < 5)
   {
-    qDebug("Usage: %s <soap_url> <user> <password>", argv[0]);
-    qDebug("Example: %s http://localhost/sugarcrm/soap.php admin secret", argv[0]);
+    qDebug("Usage: %s <soap_url> <module> <user> <password>", argv[0]);
+    qDebug("Example: %s http://localhost/sugarcrm/soap.php Contacts admin secret", argv[0]);
     return 1;
   }
 
-  QApplication app(argc, argv, false);
-
-  SugarSoap ss(argv[1], argv[2], argv[3]);
-
-  return app.exec();
+  SugarCrmResource scr(argc, argv);
 }

@@ -14,9 +14,14 @@ class SugarSoap : public QObject
 {
   Q_OBJECT
   public:
-    SugarSoap(QString strurl, const QString &user, const QString &pass);
+    SugarSoap(QString strurl);
+    void login(const QString &user, const QString &pass);
+    void getEntries(const QString &module);
 
-  private slots:
+  Q_SIGNALS:
+    void loggedIn();
+
+  private Q_SLOTS:
     void getLoginResponse();
     void getResponse();
 
@@ -24,7 +29,7 @@ class SugarSoap : public QObject
     QtSoapHttpTransport soap_http;
     QString session_id;
     QUrl url;
-    QString host;
+    QString module;
 };
 
 #endif

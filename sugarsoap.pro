@@ -4,5 +4,5 @@ CONFIG += console
 
 include(qtsoap/qtsoap.pri)
 
-HEADERS += sugarsoap.h
-SOURCES += main.cpp sugarsoap.cpp
+HEADERS += sugarcrmresource.h sugarsoap.h
+SOURCES += main.cpp sugarcrmresource.cpp sugarsoap.cpp

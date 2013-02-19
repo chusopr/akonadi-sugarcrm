@@ -11,7 +11,7 @@
 #include <iostream>
 #include <QDomElement>
 
-SugarSoap::SugarSoap(QString strurl, const QString &user, const QString &pass): soap_http(this)
+SugarSoap::SugarSoap(QString strurl): soap_http(this)
 {
   // Shouldn't this be done by QUrl::fromUserInput()?
   // QUrl::host() will fail if you don't filter extra slashes in URL scheme
@@ -21,7 +21,10 @@ SugarSoap::SugarSoap(QString strurl, const QString &user, const QString &pass): 
     strurl.replace(QRegExp("^https:/{2,}", Qt::CaseInsensitive), "https://");
 
   url = QUrl::fromUserInput(strurl);
+}
 
+void SugarSoap::login(const QString &user, const QString &pass)
+{
   // Start building a SOAP request
   QtSoapMessage soap_request;
 
@@ -80,35 +83,50 @@ void SugarSoap::getLoginResponse()
       qDebug("Login OK");
       session_id = response["id"].value().toString();
 
+      emit loggedIn();
       disconnect(&soap_http, SIGNAL(responseReady()), this, SLOT(getLoginResponse()));
-
-      QtSoapMessage soap_request;
-
-      // Set the method and add one argument.
-      soap_request.setMethod("get_entry_list");
-
-      QtSoapArray *select_fields = new QtSoapArray(QtSoapQName("select_fields"), QtSoapType::String, 3);
-      select_fields->insert(0, new QtSoapSimpleType(QtSoapQName("first_name"), "first_name"));
-      select_fields->insert(1, new QtSoapSimpleType(QtSoapQName("last_name"), "last_name"));
-      select_fields->insert(2, new QtSoapSimpleType(QtSoapQName("email1"), "email1"));
-      soap_request.addMethodArgument("session", "", session_id);
-      soap_request.addMethodArgument("module_name", "", "Contacts");
-      soap_request.addMethodArgument("query", "", "");
-      soap_request.addMethodArgument("order_by", "", "");
-      soap_request.addMethodArgument("offset", "", "");
-      soap_request.addMethodArgument(select_fields);
-      soap_request.addMethodArgument("max_results", "", 10);
-      soap_request.addMethodArgument("deleted", "", 0);
-
-      connect(&soap_http, SIGNAL(responseReady()), this, SLOT(getResponse()));
-      soap_http.setHost(url.host(),
-                        url.toString().startsWith("https://")? true : false,
-                        url.toString().startsWith("https://")? url.port(443) : url.port(80));
-      soap_http.setAction(url.toString());
-      soap_http.submitRequest(soap_request, url.path() == ""? "/" : url.path());
     }
   }
+}
 
+void SugarSoap::getEntries(const QString &module)
+{
+  if (
+    (module != "Contacts") &&
+    (module != "Leads") &&
+    (module != "Tasks") &&
+    (module != "Cases")
+  )
+  {
+    qDebug("Valid modules are: Contacts, Leads, Tasks and Cases");
+    qApp->exit(5);
+  }
+
+  this->module = module;
+  QtSoapMessage soap_request;
+
+  // Set the method and add one argument.
+  soap_request.setMethod("get_entry_list");
+
+  QtSoapArray *select_fields = new QtSoapArray(QtSoapQName("select_fields"), QtSoapType::String, 3);
+  select_fields->insert(0, new QtSoapSimpleType(QtSoapQName("first_name"), "first_name"));
+  select_fields->insert(1, new QtSoapSimpleType(QtSoapQName("last_name"), "last_name"));
+  select_fields->insert(2, new QtSoapSimpleType(QtSoapQName("email1"), "email1"));
+  soap_request.addMethodArgument("session", "", session_id);
+  soap_request.addMethodArgument("module_name", "", module);
+  soap_request.addMethodArgument("query", "", "");
+  soap_request.addMethodArgument("order_by", "", "");
+  soap_request.addMethodArgument("offset", "", "");
+  soap_request.addMethodArgument(select_fields);
+  soap_request.addMethodArgument("max_results", "", 10);
+  soap_request.addMethodArgument("deleted", "", 0);
+
+  connect(&soap_http, SIGNAL(responseReady()), this, SLOT(getResponse()));
+  soap_http.setHost(url.host(),
+                    url.toString().startsWith("https://")? true : false,
+                    url.toString().startsWith("https://")? url.port(443) : url.port(80));
+  soap_http.setAction(url.toString());
+  soap_http.submitRequest(soap_request, url.path() == ""? "/" : url.path());
 }
 
 void SugarSoap::getResponse()
@@ -130,7 +148,12 @@ void SugarSoap::getResponse()
     }
     else
     {
-      qDebug("%d contacts", response["result_count"].toInt());
+      qDebug("First %d %s", response["result_count"].toInt(), module.toLatin1().constData());
+      if ((module == "Tasks") || (module == "Cases"))
+      {
+        qDebug("TODO");
+        qApp->quit();
+      }
       // Iterate over entries
       for (int i=0; i<response["entry_list"].count(); i++)
       {
