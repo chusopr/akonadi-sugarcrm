@@ -8,6 +8,7 @@
 
 #include <QApplication>
 #include "sugarsoap.h"
+#include "sugarcrmresource.h"
 #include <iostream>
 #include <QDomElement>
 
@@ -149,10 +150,11 @@ void SugarSoap::getEntries(const QString &module)
    *   max_results:   maximum number of results in every response
    *   deleted:       do we want to get deleted results too?
    */
-  QtSoapArray *select_fields = new QtSoapArray(QtSoapQName("select_fields"), QtSoapType::String, 3);
-  select_fields->insert(0, new QtSoapSimpleType(QtSoapQName("first_name"), "first_name"));
-  select_fields->insert(1, new QtSoapSimpleType(QtSoapQName("last_name"), "last_name"));
-  select_fields->insert(2, new QtSoapSimpleType(QtSoapQName("email1"), "email1"));
+  QVector<QString> fields = SugarCrmResource::Modules[module];
+  QtSoapArray *select_fields = new QtSoapArray(QtSoapQName("select_fields"), QtSoapType::String, fields.count());
+  for (int i=0; i<fields.count(); i++)
+    select_fields->insert(i, new QtSoapSimpleType(QtSoapQName(fields[i]), fields[i]));
+
   soap_request.addMethodArgument("session", "", session_id);
   soap_request.addMethodArgument("module_name", "", module);
   soap_request.addMethodArgument("query", "", "");
@@ -204,13 +206,14 @@ void SugarSoap::getResponse()
     else
     {
       // Print returned data
-      qDebug("First %d %s", response["result_count"].toInt(), module.toLatin1().constData());
+      qDebug("First %d %s \n", response["result_count"].toInt(), module.toLatin1().constData());
       if ((module == "Tasks") || (module == "Cases"))
       {
         qDebug("TODO");
         qApp->quit();
       }
       // Iterate over entries
+      QVector<QString> fields = SugarCrmResource::Modules[module];
       for (int i=0; i<response["entry_list"].count(); i++)
       {
         const QtSoapStruct *entry = (QtSoapStruct*)&(response["entry_list"][i]);
@@ -218,12 +221,10 @@ void SugarSoap::getResponse()
         for (int j=0; j<(*entry)["name_value_list"].count(); j++)
         {
           const QtSoapStruct *field = (QtSoapStruct*)&((*entry)["name_value_list"][j]);
-          // For now, we are only interested in first name, last name and e-mail
-          if (((*field)["name"].value().toString() == "first_name") || ((*field)["name"].value().toString() == "last_name"))
-            std::cout << (*field)["value"].toString().toLatin1().constData() << " ";
-          else if ((*field)["name"].value().toString() == "email1")
-            std::cout << "<" << (*field)["value"].toString().toLatin1().constData() << ">" << std::endl;
+          if (fields.contains((*field)["name"].value().toString()))
+            std::cout << (*field)["name"].value().toString().toLatin1().constData() << ":\t" << (*field)["value"].toString().toLatin1().constData() << std::endl;
         }
+        std::cout << std::endl;
       }
     }
   }
