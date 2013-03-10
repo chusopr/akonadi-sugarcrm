@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Akonadi SugarCRM resource
+Comment=Allows you to import Contacts, Leads, Tasks and Cases to Akonadi from SugarCRM
+Type=AkonadiResource
+Exec=akonadi_sugarcrm_resource
+Icon=text-directory
+
+X-Akonadi-MimeTypes=text/directory
+X-Akonadi-Capabilities=Resource
+X-Akonadi-Identifier=akonadi_sugarcrm_resource
