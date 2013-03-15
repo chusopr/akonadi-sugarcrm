@@ -8,7 +8,7 @@
 
 #ifndef SUGARSOAP_H
 #define SUGARSOAP_H
-#include <qtsoap/qtsoap.h>
+#include "qtsoap/qtsoap.h"
 
 class SugarSoap : public QObject
 {
@@ -16,20 +16,25 @@ class SugarSoap : public QObject
   public:
     SugarSoap(QString strurl);
     void login(const QString &user, const QString &pass);
-    void getEntries(const QString &module);
+    QVector<QString>* getEntries(const QString &module);
+    QMap<QString, QString>* getEntry(const QString &module, const QString &id);
 
   Q_SIGNALS:
     void loggedIn();
+    void loginFailed();
 
   private Q_SLOTS:
     void getLoginResponse();
-    void getResponse();
+    void entriesReady();
+    void entryReady();
 
   private:
     QtSoapHttpTransport soap_http;
     QString session_id;
     QUrl url;
     QString module;
+    QVector<QString>* entries;
+    QMap<QString, QString>* entry;
 };
 
 #endif

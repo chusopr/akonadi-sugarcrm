@@ -1,0 +1,16 @@
+If compilation fails with this error:
+
+error: 'KUrl::operator QString() const' is private
+
+it means that your kconfig is buggy and tries to return QString objects for KUrl settings.
+
+You have to ways to solve this:
+
+1. Patch your KConfig to fix this bug (more detailed information to come).
+
+2. Fix KConfig wrong generated code by hand following this steps:
+
+   - Run make, it will fail with error above.
+   - After it fails, edit settingsadaptor.h and settingsadaptor.cpp
+     and change soap() method return type from QString to KUrl.
+   - Run make again.
