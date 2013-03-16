@@ -123,9 +123,9 @@ void SugarSoap::getLoginResponse()
  * Requests an entry list
  * \param[in] module Module you want to get data from
  */
-QVector<QString>* SugarSoap::getEntries(const QString &module)
+QStringList *SugarSoap::getEntries(const QString &module)
 {
-  entries = new QVector<QString>;
+  entries = new QStringList;
   // Check that the request module is one of the ones we allow
   if (!SugarCrmResource::Modules.contains(module))
   {
@@ -200,9 +200,9 @@ QVector<QString>* SugarSoap::getEntries(const QString &module)
  * Requests an entry list
  * \param[in] module Module you want to get data from
  */
-QMap<QString, QString>* SugarSoap::getEntry(const QString &module, const QString &id)
+QHash<QString, QString>* SugarSoap::getEntry(const QString &module, const QString &id)
 {
-  entry = new QMap<QString, QString>;
+  entry = new QHash<QString, QString>;
   // Check that the request module is one of the ones we allow
   if (!SugarCrmResource::Modules.contains(module))
   {
@@ -242,10 +242,10 @@ QMap<QString, QString>* SugarSoap::getEntry(const QString &module, const QString
    *   max_results:   maximum number of results in every response
    *   deleted:       do we want to get deleted results too?
    */
-  QVector<QString> fields = SugarCrmResource::Modules[module];
+  QStringList fields = SugarCrmResource::Modules[module];
   QtSoapArray *select_fields = new QtSoapArray(QtSoapQName("select_fields"), QtSoapType::String, fields.count());
-  for (int i=0; i<fields.count(); i++)
-    select_fields->insert(i, new QtSoapSimpleType(QtSoapQName(fields[i]), fields[i]));
+  foreach (QString field, fields)
+    select_fields->append(new QtSoapSimpleType(QtSoapQName(field), field));
 
   soap_request.addMethodArgument("session", "", session_id);
   soap_request.addMethodArgument("module_name", "", module);
@@ -340,8 +340,7 @@ void SugarSoap::entryReady()
     else
     {
       // Print returned data
-      QVector<QString> fields = SugarCrmResource::Modules[module];
-      //QMap<QString, QString> rawEntry;
+      QStringList fields = SugarCrmResource::Modules[module];
       const QtSoapStruct *soapEntry = (QtSoapStruct*)&(response["entry_list"][0]);
       // Show this entry's data
       for (int j=0; j<(*soapEntry)["name_value_list"].count(); j++)

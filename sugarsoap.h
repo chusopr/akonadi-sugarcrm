@@ -16,8 +16,8 @@ class SugarSoap : public QObject
   public:
     SugarSoap(QString strurl);
     void login(const QString &user, const QString &pass);
-    QVector<QString>* getEntries(const QString &module);
-    QMap<QString, QString>* getEntry(const QString &module, const QString &id);
+    QStringList *getEntries(const QString &module);
+    QHash<QString, QString>* getEntry(const QString &module, const QString &id);
 
   Q_SIGNALS:
     void loggedIn();
@@ -33,8 +33,8 @@ class SugarSoap : public QObject
     QString session_id;
     QUrl url;
     QString module;
-    QVector<QString>* entries;
-    QMap<QString, QString>* entry;
+    QStringList *entries;
+    QHash<QString, QString>* entry;
 };
 
 #endif

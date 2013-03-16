@@ -13,7 +13,7 @@ class SugarCrmResource : public Akonadi::ResourceBase,
   public:
     SugarCrmResource( const QString &id );
     ~SugarCrmResource();
-    static QMap<QString,QVector<QString> > Modules;
+    static QHash<QString,QStringList> Modules;
 
   public Q_SLOTS:
     virtual void configure( WId windowId );

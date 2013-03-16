@@ -19,29 +19,17 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   : ResourceBase( id )
 {
   // Populate Map of valid modules and required fields for each module
-  QVector<QString> fields;
-  fields.append("first_name");
-  fields.append("last_name");
-  fields.append("email1");
+  QStringList fields;
+  fields << "first_name" << "last_name" << "email1";
   SugarCrmResource::Modules["Contacts"] = SugarCrmResource::Modules["Leads"] = fields;
 
   fields.clear();
-  fields.append("name");
-  fields.append("description");
-  fields.append("date_due_flag");
-  fields.append("date_due");
-  fields.append("date_start_flag");
-  fields.append("date_start");
+  fields << "name" << "description" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
   SugarCrmResource::Modules["Tasks"] = fields;
 
   fields.clear();
-  fields.append("name");
-  fields.append("description");
-  fields.append("case_number");
+  fields << "name" << "description" << "case_number" << "date_due" << "date_start_flag" << "date_start";
   // TODO: where status is active
-  fields.append("date_due");
-  fields.append("date_start_flag");
-  fields.append("date_start");
   SugarCrmResource::Modules["Cases"] = fields;
 
   new SettingsAdaptor( Settings::self() );
@@ -78,13 +66,13 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
 {
   Q_UNUSED(collection);
   soap = new SugarSoap(Settings::self()->url().url());
-  QVector<QString> *rawItems = soap->getEntries("Contacts");;
+  QStringList *soapItems = soap->getEntries("Contacts");;
 
   Item::List items;
-  for (int i=0; i<rawItems->count(); i++)
+  foreach (QString itemId, (*soapItems))
   {
     Item item("text/directory");
-    item.setRemoteId((*rawItems)[i]);
+    item.setRemoteId(itemId);
     items << item;
   }
 
@@ -97,7 +85,7 @@ bool SugarCrmResource::retrieveItem( const Akonadi::Item &item, const QSet<QByte
 
   soap = new SugarSoap(Settings::self()->url().url());
   // TODO check returned value
-  QMap<QString, QString> *rawItem = soap->getEntry("Contacts", item.remoteId());
+  QHash<QString, QString> *rawItem = soap->getEntry("Contacts", item.remoteId());
 
   KABC::Addressee addressee;
   addressee.setGivenName((*rawItem)["first_name"]);
@@ -176,6 +164,6 @@ void SugarCrmResource::itemRemoved( const Akonadi::Item &item )
 }
 
 AKONADI_RESOURCE_MAIN( SugarCrmResource );
-QMap<QString,QVector<QString> > SugarCrmResource::Modules;
+QHash<QString,QStringList> SugarCrmResource::Modules;
 
 #include "sugarcrmresource.moc"
