@@ -14,8 +14,8 @@ class SugarSoap : public QObject
 {
   Q_OBJECT
   public:
-    SugarSoap(QString strurl);
-    void login(const QString &user, const QString &pass);
+    SugarSoap(QString strurl, QString sid = "");
+    QString login(const QString &user, const QString &pass);
     QStringList *getEntries(const QString &module);
     QHash<QString, QString>* getEntry(const QString &module, const QString &id);
 

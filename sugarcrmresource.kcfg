@@ -7,15 +7,19 @@
   <kcfgfile/>
   <group name="General">
     <entry name="Url" type="Url">
-      <label>SugarCRM SOAP API URL.</label>
+      <label>SugarCRM SOAP API URL</label>
       <default></default>
     </entry>
     <entry name="Username" type="String">
-      <label>SugarCRM SOAP API URL.</label>
+      <label>SugarCRM username</label>
       <default></default>
     </entry>
     <entry name="Password" type="Password">
-      <label>SugarCRM SOAP API URL.</label>
+      <label>SugarCRM password</label>
+      <default></default>
+    </entry>
+    <entry name="SessionId" type="Password">
+      <label>SugarCRM cached session id</label>
       <default></default>
     </entry>
     <!-- TODO entry name="ReadOnly" type="Bool">

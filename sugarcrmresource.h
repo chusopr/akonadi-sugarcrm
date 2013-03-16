@@ -22,7 +22,6 @@ class SugarCrmResource : public Akonadi::ResourceBase,
     void retrieveCollections();
     void retrieveItems( const Akonadi::Collection &col );
     bool retrieveItem( const Akonadi::Item &item, const QSet<QByteArray> &parts );
-    void writeConfig();
 
   protected:
     virtual void aboutToQuit();

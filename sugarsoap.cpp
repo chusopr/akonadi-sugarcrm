@@ -22,7 +22,7 @@
  * Constructs a new SugarSoap object.
  * \param[in] strurl SugarCRM SOAP API URL
  */
-SugarSoap::SugarSoap(QString strurl): soap_http(this)
+SugarSoap::SugarSoap(QString strurl, QString sid): soap_http(this)
 {
   // Shouldn't this be done by QUrl::fromUserInput()?
   // QUrl::host() will fail if you don't filter extra slashes in URL scheme
@@ -31,7 +31,7 @@ SugarSoap::SugarSoap(QString strurl): soap_http(this)
   else if (strurl.startsWith("https://"))
     strurl.replace(QRegExp("^https:/{2,}", Qt::CaseInsensitive), "https://");
 
-  session_id = "";
+  session_id = sid;
 
   url = QUrl::fromUserInput(strurl);
 }
@@ -41,8 +41,9 @@ SugarSoap::SugarSoap(QString strurl): soap_http(this)
  * \param[in] user Login user name
  * \param[in] pass Login password
  */
-void SugarSoap::login(const QString &user, const QString &pass)
+QString SugarSoap::login(const QString &user, const QString &pass)
 {
+  session_id = "";
   // Start building a SOAP request
   QtSoapMessage soap_request;
 
@@ -71,13 +72,19 @@ void SugarSoap::login(const QString &user, const QString &pass)
    * Connects responseReady() event in QtSoapHttpTransport to
    * getLoginResponse() method in this
    */
-  connect(&soap_http, SIGNAL(responseReady()), this, SLOT(getLoginResponse()));
   // Finally, send the request
   soap_http.setHost(url.host(),
                     url.toString().startsWith("https://")? true : false,
                     url.toString().startsWith("https://")? url.port(443) : url.port(80));
   soap_http.setAction(url.toString());
+  QEventLoop loop;
+  connect(&soap_http, SIGNAL(responseReady()), this, SLOT(getLoginResponse()));
+  connect(&soap_http, SIGNAL(responseReady()), &loop, SLOT(quit()));
   soap_http.submitRequest(soap_request, url.path() == ""? "/" : url.path());
+  loop.exec();
+  disconnect(&soap_http, SIGNAL(responseReady()), &loop, SLOT(quit()));
+  disconnect(&soap_http, SIGNAL(responseReady()), this, SIGNAL(getLoginResponse()));
+  return session_id;
 }
 
 /*!
@@ -114,7 +121,6 @@ void SugarSoap::getLoginResponse()
 
       /*! If login was accepted, say to parent that it can go on by emitting loggedIn() signal */
       emit loggedIn();
-      disconnect(&soap_http, SIGNAL(responseReady()), this, SLOT(getLoginResponse()));
     }
   }
 }
@@ -134,16 +140,11 @@ QStringList *SugarSoap::getEntries(const QString &module)
     return entries;
   }
 
-  // Check if we are logged in
-  if (session_id == "")
+  // TODO move this check to login method
+  // Check if we are logged in1
+  if ((session_id.isNull()) || (session_id.isEmpty()))
   {
-    QEventLoop loop;
-    connect(this, SIGNAL(loggedIn()), &loop, SLOT(quit()));
-    connect(this, SIGNAL(loginFailed()), &loop, SLOT(quit()));
     this->login(Settings::self()->username(), Settings::self()->password());
-    loop.exec();
-    disconnect(this, SIGNAL(loggedIn()), &loop, SLOT(quit()));
-    disconnect(this, SIGNAL(loginFailed()), &loop, SLOT(quit()));
     if ((session_id.isEmpty()) || (session_id.isNull())) // login failed
       return entries;
   }
@@ -211,16 +212,11 @@ QHash<QString, QString>* SugarSoap::getEntry(const QString &module, const QStrin
     return entry;
   }
 
+  // TODO move this check to login method
   // Check if we are logged in
-  if (session_id == "")
+  if ((session_id.isNull()) || (session_id.isEmpty()))
   {
-    QEventLoop loop;
-    connect(this, SIGNAL(loggedIn()), &loop, SLOT(quit()));
-    connect(this, SIGNAL(loginFailed()), &loop, SLOT(quit()));
     this->login(Settings::self()->username(), Settings::self()->password());
-    loop.exec();
-    disconnect(this, SIGNAL(loggedIn()), &loop, SLOT(quit()));
-    disconnect(this, SIGNAL(loginFailed()), &loop, SLOT(quit()));
     if ((session_id.isEmpty()) || (session_id.isNull())) // login failed
       return entry;
   }

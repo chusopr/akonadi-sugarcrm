@@ -119,22 +119,14 @@ void SugarCrmResource::configure( WId windowId )
   }
 
   soap = new SugarSoap(configDlg.url());
-  QEventLoop loop;
   // TODO timeout
-  connect(soap, SIGNAL(loggedIn()), this, SLOT(writeConfig()));
-  connect(soap, SIGNAL(loggedIn()), &loop, SLOT(quit()));
-  connect(soap, SIGNAL(loginFailed()), this, SIGNAL(configurationDialogRejected()));
-  connect(soap, SIGNAL(loginFailed()), &loop, SLOT(quit()));
-  soap->login(configDlg.username(), configDlg.password());
-  loop.exec();
-  disconnect(soap, SIGNAL(loggedIn()), this, SLOT(writeConfig()));
-  disconnect(soap, SIGNAL(loggedIn()), &loop, SLOT(quit()));
-  disconnect(soap, SIGNAL(loginFailed()), this, SIGNAL(configurationDialogRejected()));
-  disconnect(soap, SIGNAL(loginFailed()), &loop, SLOT(quit()));
-}
+  Settings::self()->setSessionId(soap->login(configDlg.username(), configDlg.password()));
+  if (Settings::self()->sessionId().isEmpty())
+  {
+    emit configurationDialogRejected();
+    return;
+  }
 
-void SugarCrmResource::writeConfig()
-{
   Settings::self()->setUrl(configDlg.url());
   Settings::self()->setUsername(configDlg.username());
   Settings::self()->setPassword(configDlg.password());
