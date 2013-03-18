@@ -19,18 +19,21 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   : ResourceBase( id )
 {
   // Populate Map of valid modules and required fields for each module
-  QStringList fields;
-  fields << "first_name" << "last_name" << "email1";
-  SugarCrmResource::Modules["Contacts"] = SugarCrmResource::Modules["Leads"] = fields;
+  module *modinfo = new module;
+  modinfo->fields << "first_name" << "last_name" << "email1";
+  modinfo->mimes << "text/directory";
+  SugarCrmResource::Modules["Contacts"] = SugarCrmResource::Modules["Leads"] = *modinfo;
 
-  fields.clear();
-  fields << "name" << "description" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
-  SugarCrmResource::Modules["Tasks"] = fields;
+  modinfo = new module;
+  modinfo->fields << "name" << "description" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
+  modinfo->mimes << "text/calendar";
+  SugarCrmResource::Modules["Tasks"] = *modinfo;
 
-  fields.clear();
-  fields << "name" << "description" << "case_number" << "date_due" << "date_start_flag" << "date_start";
+  modinfo = new module;
+  modinfo->fields << "name" << "description" << "case_number" << "date_due" << "date_start_flag" << "date_start";
+  modinfo->mimes << "application/x-vnd.akonadi.calendar.todo";
   // TODO: where status is active
-  SugarCrmResource::Modules["Cases"] = fields;
+  SugarCrmResource::Modules["Cases"] = *modinfo;
 
   new SettingsAdaptor( Settings::self() );
   QDBusConnection::sessionBus().registerObject( QLatin1String( "/Settings" ),
@@ -156,6 +159,6 @@ void SugarCrmResource::itemRemoved( const Akonadi::Item &item )
 }
 
 AKONADI_RESOURCE_MAIN( SugarCrmResource );
-QHash<QString,QStringList> SugarCrmResource::Modules;
+QHash<QString,module> SugarCrmResource::Modules;
 
 #include "sugarcrmresource.moc"

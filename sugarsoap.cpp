@@ -238,7 +238,7 @@ QHash<QString, QString>* SugarSoap::getEntry(const QString &module, const QStrin
    *   max_results:   maximum number of results in every response
    *   deleted:       do we want to get deleted results too?
    */
-  QStringList fields = SugarCrmResource::Modules[module];
+  QStringList fields = SugarCrmResource::Modules[module].fields;
   QtSoapArray *select_fields = new QtSoapArray(QtSoapQName("select_fields"), QtSoapType::String, fields.count());
   foreach (QString field, fields)
     select_fields->append(new QtSoapSimpleType(QtSoapQName(field), field));
@@ -336,7 +336,7 @@ void SugarSoap::entryReady()
     else
     {
       // Print returned data
-      QStringList fields = SugarCrmResource::Modules[module];
+      QStringList fields = SugarCrmResource::Modules[module].fields;
       const QtSoapStruct *soapEntry = (QtSoapStruct*)&(response["entry_list"][0]);
       // Show this entry's data
       for (int j=0; j<(*soapEntry)["name_value_list"].count(); j++)

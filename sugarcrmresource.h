@@ -5,6 +5,12 @@
 #include "sugarsoap.h"
 #include "sugarconfig.h"
 
+struct module
+{
+  QStringList fields;
+  QStringList mimes;
+};
+
 class SugarCrmResource : public Akonadi::ResourceBase,
                            public Akonadi::AgentBase::Observer
 {
@@ -13,7 +19,7 @@ class SugarCrmResource : public Akonadi::ResourceBase,
   public:
     SugarCrmResource( const QString &id );
     ~SugarCrmResource();
-    static QHash<QString,QStringList> Modules;
+    static QHash<QString,module> Modules;
 
   public Q_SLOTS:
     virtual void configure( WId windowId );
