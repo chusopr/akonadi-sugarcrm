@@ -51,31 +51,40 @@ void SugarCrmResource::retrieveCollections()
   KUrl url = KUrl(Settings::self()->url());
   if (!url.hasUser()) url.setUser(Settings::self()->username());
 
-  Collection c;
-  c.setParent(Collection::root());
-  c.setRemoteId(url.url());
-  c.setName(i18n("SugarCRM resource for %1").arg(url.url()));
-
   QStringList mimeTypes;
   mimeTypes << QLatin1String("text/directory");
+
+  Collection c;
+  c.setParent(Collection::root());
+  c.setRemoteId("Contacts@" + url.url());
+  c.setName(i18n("Contacts from SugarCRM resource at %1").arg(url.url()));
   c.setContentMimeTypes(mimeTypes);
 
+  Collection l;
+  l.setParent(Collection::root());
+  l.setRemoteId("Leads@" + url.url());
+  l.setName(i18n("Leads from SugarCRM resource at %1").arg(url.url()));
+  l.setContentMimeTypes(mimeTypes);
+
   Collection::List list;
-  list << c;
+  list << c << l;
   collectionsRetrieved(list);
 }
 
 void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
 {
-  Q_UNUSED(collection);
+  QString mod = collection.remoteId().replace(QRegExp("@.*"), "");
+  if (!SugarCrmResource::Modules.contains(mod))
+    return;
   soap = new SugarSoap(Settings::self()->url().url());
-  QStringList *soapItems = soap->getEntries("Contacts");;
+  QStringList *soapItems = soap->getEntries(mod);;
 
   Item::List items;
   foreach (QString itemId, (*soapItems))
   {
     Item item("text/directory");
-    item.setRemoteId(itemId);
+    item.setRemoteId(mod + "@" + itemId);
+    item.setParentCollection(collection);
     items << item;
   }
 
@@ -85,10 +94,13 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
 bool SugarCrmResource::retrieveItem( const Akonadi::Item &item, const QSet<QByteArray> &parts )
 {
   Q_UNUSED( parts );
+  QString mod = item.remoteId().replace(QRegExp("@.*"), "");
+  if (!SugarCrmResource::Modules.contains(mod))
+    return false;
 
   soap = new SugarSoap(Settings::self()->url().url());
   // TODO check returned value
-  QHash<QString, QString> *rawItem = soap->getEntry("Contacts", item.remoteId());
+  QHash<QString, QString> *rawItem = soap->getEntry(mod, item.remoteId().replace(QRegExp(".*@"), ""));
 
   KABC::Addressee addressee;
   addressee.setGivenName((*rawItem)["first_name"]);
