@@ -5,11 +5,7 @@
 #include "sugarsoap.h"
 #include "sugarconfig.h"
 
-struct module
-{
-  QStringList fields;
-  QStringList mimes;
-};
+struct module;
 
 class SugarCrmResource : public Akonadi::ResourceBase,
                            public Akonadi::AgentBase::Observer
@@ -35,8 +31,16 @@ class SugarCrmResource : public Akonadi::ResourceBase,
     virtual void itemChanged( const Akonadi::Item &item, const QSet<QByteArray> &parts );
     virtual void itemRemoved( const Akonadi::Item &item );
     SugarConfig configDlg;
+    Akonadi::Item contactPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item);
 
     SugarSoap *soap;
+};
+
+struct module
+{
+  QStringList fields;
+  QStringList mimes;
+  Akonadi::Item (SugarCrmResource::*payload_function)(const QHash<QString, QString> &, const Akonadi::Item &);
 };
 
 #endif

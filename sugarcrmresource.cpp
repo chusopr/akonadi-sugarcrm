@@ -22,6 +22,7 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   module *modinfo = new module;
   modinfo->fields << "first_name" << "last_name" << "email1";
   modinfo->mimes << "text/directory";
+  modinfo->payload_function = &SugarCrmResource::contactPayload;
   SugarCrmResource::Modules["Contacts"] = SugarCrmResource::Modules["Leads"] = *modinfo;
 
   modinfo = new module;
@@ -100,18 +101,24 @@ bool SugarCrmResource::retrieveItem( const Akonadi::Item &item, const QSet<QByte
 
   soap = new SugarSoap(Settings::self()->url().url());
   // TODO check returned value
-  QHash<QString, QString> *rawItem = soap->getEntry(mod, item.remoteId().replace(QRegExp(".*@"), ""));
+  QHash<QString, QString> *soapItem = soap->getEntry(mod, item.remoteId().replace(QRegExp(".*@"), ""));
 
+  itemRetrieved((this->*SugarCrmResource::Modules[mod].payload_function)(*soapItem, item));
+  return true;
+}
+
+Item SugarCrmResource::contactPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item)
+{
+  // TODO: more fields
   KABC::Addressee addressee;
-  addressee.setGivenName((*rawItem)["first_name"]);
-  addressee.setFamilyName((*rawItem)["last_name"]);
+  addressee.setGivenName(soapItem["first_name"]);
+  addressee.setFamilyName(soapItem["last_name"]);
   QStringList emails;
-  emails << (*rawItem)["email1"];
+  emails << soapItem["email1"];
   addressee.setEmails(emails);
   Item newItem( item );
   newItem.setPayload<KABC::Addressee>( addressee );
-  itemRetrieved( newItem );
-  return true;
+  return newItem;
 }
 
 void SugarCrmResource::aboutToQuit()
