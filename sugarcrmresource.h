@@ -32,6 +32,7 @@ class SugarCrmResource : public Akonadi::ResourceBase,
     virtual void itemRemoved( const Akonadi::Item &item );
     SugarConfig configDlg;
     Akonadi::Item contactPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item);
+    Akonadi::Item taskPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item);
 
     SugarSoap *soap;
 };

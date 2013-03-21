@@ -9,6 +9,7 @@
 
 #include <KWindowSystem>
 #include <KABC/Addressee>
+#include <KCalCore/Todo>
 #include <Akonadi/ItemFetchScope>
 #include <Akonadi/ChangeRecorder>
 #include <KLocalizedString>
@@ -27,12 +28,13 @@ SugarCrmResource::SugarCrmResource( const QString &id )
 
   modinfo = new module;
   modinfo->fields << "name" << "description" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
-  modinfo->mimes << "text/calendar";
+  modinfo->mimes << KCalCore::Todo::todoMimeType();
+  modinfo->payload_function = &SugarCrmResource::taskPayload;
   SugarCrmResource::Modules["Tasks"] = *modinfo;
 
   modinfo = new module;
   modinfo->fields << "name" << "description" << "case_number" << "date_due" << "date_start_flag" << "date_start";
-  modinfo->mimes << "application/x-vnd.akonadi.calendar.todo";
+  modinfo->mimes << KCalCore::Todo::todoMimeType();
   // TODO: where status is active
   SugarCrmResource::Modules["Cases"] = *modinfo;
 
@@ -67,8 +69,16 @@ void SugarCrmResource::retrieveCollections()
   l.setName(i18n("Leads from SugarCRM resource at %1").arg(url.url()));
   l.setContentMimeTypes(mimeTypes);
 
+  mimeTypes.clear();
+  mimeTypes << KCalCore::Todo::todoMimeType();
+  Collection t;
+  t.setParent(Collection::root());
+  t.setRemoteId("Tasks@" + url.url());
+  t.setName(i18n("Tasks from SugarCRM resource at %1").arg(url.url()));
+  t.setContentMimeTypes(mimeTypes);
+
   Collection::List list;
-  list << c << l;
+  list << c << l << t;
   collectionsRetrieved(list);
 }
 
@@ -83,7 +93,7 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
   Item::List items;
   foreach (QString itemId, (*soapItems))
   {
-    Item item("text/directory");
+    Item item(SugarCrmResource::Modules[mod].mimes[0]);
     item.setRemoteId(mod + "@" + itemId);
     item.setParentCollection(collection);
     items << item;
@@ -118,6 +128,21 @@ Item SugarCrmResource::contactPayload(const QHash<QString, QString> &soapItem, c
   addressee.setEmails(emails);
   Item newItem( item );
   newItem.setPayload<KABC::Addressee>( addressee );
+  return newItem;
+}
+
+Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item)
+{
+  KCalCore::Todo::Ptr event(new KCalCore::Todo);
+  event->setSummary(soapItem["name"]);
+  event->setDescription(soapItem["description"]);
+  if (!soapItem["date_start"].isEmpty())
+    event->setDtStart(KDateTime::fromString(soapItem["date_start"], KDateTime::ISODate));
+  if (!soapItem["date_due"].isEmpty())
+    // FIXME: It seems that it only gets date but not time
+    event->setDtDue(KDateTime::fromString(soapItem["date_due"], KDateTime::ISODate));
+  Item newItem(item);
+  newItem.setPayload<KCalCore::Todo::Ptr>(event);
   return newItem;
 }
 

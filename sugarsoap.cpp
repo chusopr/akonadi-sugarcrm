@@ -178,6 +178,8 @@ QStringList *SugarSoap::getEntries(const QString &module)
   soap_request.addMethodArgument("max_results", "", "");
   soap_request.addMethodArgument("deleted", "", 0);
 
+  // TODO: get more than 20 entries
+
   /*!
    * Connects responseReady() event in QtSoapHttpTransport to
    * getResponse() method in this
