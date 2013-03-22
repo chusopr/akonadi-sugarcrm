@@ -1,3 +1,11 @@
+/*
+ * Copyright (C) 2013 Jesus Perez (a) Chuso <github at chuso dot net>
+ * http://chuso.net
+ *
+ * Resitributable under the terms of the Artistic License
+ * http://opensource.org/licenses/artistic-license.php
+ */
+
 #include "sugarcrmresource.h"
 #include "sugarsoap.h"
 #include "sugarconfig.h"
@@ -16,6 +24,14 @@
 
 using namespace Akonadi;
 
+/*!
+ * \class SugarSoap
+ * \brief The SugarCrmResource class handles is the main class that is queried by Akonadi
+*/
+
+/*!
+ * Constructs a new SugarCrmSource object.
+ */
 SugarCrmResource::SugarCrmResource( const QString &id )
   : ResourceBase( id )
 {
@@ -49,47 +65,56 @@ SugarCrmResource::~SugarCrmResource()
 {
 }
 
+/*!
+ * Called by Akonadi to know wich collections we are going to provide
+ */
 void SugarCrmResource::retrieveCollections()
 {
+  // Build URL used for remoteIds
   KUrl url = KUrl(Settings::self()->url());
   if (!url.hasUser()) url.setUser(Settings::self()->username());
 
-  QStringList mimeTypes;
-  mimeTypes << QLatin1String("text/directory");
-
+  // Add a collection for each module queried
   Collection c;
   c.setParent(Collection::root());
   c.setRemoteId("Contacts@" + url.url());
   c.setName(i18n("Contacts from SugarCRM resource at %1").arg(url.url()));
-  c.setContentMimeTypes(mimeTypes);
+  c.setContentMimeTypes(QStringList("text/directory"));
 
   Collection l;
   l.setParent(Collection::root());
   l.setRemoteId("Leads@" + url.url());
   l.setName(i18n("Leads from SugarCRM resource at %1").arg(url.url()));
-  l.setContentMimeTypes(mimeTypes);
+  l.setContentMimeTypes(QStringList("text/directory"));
 
-  mimeTypes.clear();
-  mimeTypes << KCalCore::Todo::todoMimeType();
   Collection t;
   t.setParent(Collection::root());
   t.setRemoteId("Tasks@" + url.url());
   t.setName(i18n("Tasks from SugarCRM resource at %1").arg(url.url()));
-  t.setContentMimeTypes(mimeTypes);
+  t.setContentMimeTypes(QStringList(KCalCore::Todo::todoMimeType()));
 
   Collection::List list;
   list << c << l << t;
   collectionsRetrieved(list);
 }
 
+/*!
+ * Called by Akonadi to retrieve items from a collection
+ * \param[in] collection Collection we want to retrieve items to
+ */
 void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
 {
+  // FIXME for now, we are storing in remoteID wich module the item belongs to
   QString mod = collection.remoteId().replace(QRegExp("@.*"), "");
+  // Check if the module we got is valid
   if (!SugarCrmResource::Modules.contains(mod))
     return;
+
+  // Request items to SugarSoap
   soap = new SugarSoap(Settings::self()->url().url());
   QStringList *soapItems = soap->getEntries(mod);;
 
+  // At this step, we only need their remoteIds.
   Item::List items;
   foreach (QString itemId, (*soapItems))
   {
@@ -102,21 +127,37 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
   itemsRetrieved( items );
 }
 
+/*!
+ * Called by Akonadi when it wants to retrieve the whole data of a item
+ * \param[in] item  the item
+ * \param[in] parts item parts that need to be retrieved (not used)
+ */
 bool SugarCrmResource::retrieveItem( const Akonadi::Item &item, const QSet<QByteArray> &parts )
 {
   Q_UNUSED( parts );
+  // FIXME for now, we are storing in remoteID wich module the item belongs to
   QString mod = item.remoteId().replace(QRegExp("@.*"), "");
+  // Check if the module we got is valid
   if (!SugarCrmResource::Modules.contains(mod))
     return false;
 
+  // Request data to SugarSoap
   soap = new SugarSoap(Settings::self()->url().url());
   // TODO check returned value
+  // Call function pointer to the function that returns the appropi
   QHash<QString, QString> *soapItem = soap->getEntry(mod, item.remoteId().replace(QRegExp(".*@"), ""));
 
   itemRetrieved((this->*SugarCrmResource::Modules[mod].payload_function)(*soapItem, item));
   return true;
 }
 
+/*!
+ * Receives an an Akonadi::Item and a SOAP assocative array that
+ * contains an addreess book contact to be set as item's payload
+ * \param[in] soapItem The associative array containing an address book contact
+ * \param[in] item the item whom payload will be populated
+ * \return A new Akonadi::Item with its payload
+ */
 Item SugarCrmResource::contactPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item)
 {
   // TODO: more fields
@@ -131,6 +172,13 @@ Item SugarCrmResource::contactPayload(const QHash<QString, QString> &soapItem, c
   return newItem;
 }
 
+/*!
+ * Receives an an Akonadi::Item and a SOAP assocative array that
+ * contains a calendar task to be set as item's payload
+ * \param[in] soapItem The associative array containing a calendar task
+ * \param[in] item the item whom payload will be populated
+ * \return A new Akonadi::Item with its payload
+ */
 Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item)
 {
   KCalCore::Todo::Ptr event(new KCalCore::Todo);
@@ -152,19 +200,27 @@ void SugarCrmResource::aboutToQuit()
   // event loop. The resource will terminate after this method returns
 }
 
-void SugarCrmResource::configure( WId windowId )
+/*!
+ * Called by Akonadi to configure plugin.
+ * Emits a configurationDialogAccepted() signal if it was successful,
+ * configurationDialogRejected() otherwise.
+ * \param[in] windowId Parent window
+ */
+void SugarCrmResource::configure(const WId windowId)
 {
   Q_UNUSED( windowId );
 
   // TODO: populate form fields
   KWindowSystem::setMainWindow(&configDlg, windowId);
 
+  // Check if user clicked OK or Cancel
   if (configDlg.exec() == QDialog::Rejected)
   {
     emit configurationDialogRejected();
     return;
   }
 
+  // Test if supplied data is correct
   soap = new SugarSoap(configDlg.url());
   // TODO timeout
   Settings::self()->setSessionId(soap->login(configDlg.username(), configDlg.password()));
@@ -174,14 +230,17 @@ void SugarCrmResource::configure( WId windowId )
     return;
   }
 
+  // Sotre configuration values
   Settings::self()->setUrl(configDlg.url());
   Settings::self()->setUsername(configDlg.username());
   Settings::self()->setPassword(configDlg.password());
 
+  // And write configuration file
   Settings::self()->writeConfig();
 
   emit configurationDialogAccepted();
 
+  // Start synchronization
   synchronize();
 }
 

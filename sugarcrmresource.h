@@ -13,23 +13,23 @@ class SugarCrmResource : public Akonadi::ResourceBase,
   Q_OBJECT
 
   public:
-    SugarCrmResource( const QString &id );
+    SugarCrmResource(const QString &id);
     ~SugarCrmResource();
     static QHash<QString,module> Modules;
 
   public Q_SLOTS:
-    virtual void configure( WId windowId );
+    virtual void configure(const WId windowId);
 
   protected Q_SLOTS:
     void retrieveCollections();
-    void retrieveItems( const Akonadi::Collection &col );
-    bool retrieveItem( const Akonadi::Item &item, const QSet<QByteArray> &parts );
+    void retrieveItems(const Akonadi::Collection &col);
+    bool retrieveItem(const Akonadi::Item &item, const QSet<QByteArray> &parts);
 
   protected:
     virtual void aboutToQuit();
-    virtual void itemAdded( const Akonadi::Item &item, const Akonadi::Collection &collection );
-    virtual void itemChanged( const Akonadi::Item &item, const QSet<QByteArray> &parts );
-    virtual void itemRemoved( const Akonadi::Item &item );
+    virtual void itemAdded(const Akonadi::Item &item, const Akonadi::Collection &collection);
+    virtual void itemChanged(const Akonadi::Item &item, const QSet<QByteArray> &parts);
+    virtual void itemRemoved(const Akonadi::Item &item);
     SugarConfig configDlg;
     Akonadi::Item contactPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item);
     Akonadi::Item taskPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item);

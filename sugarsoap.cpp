@@ -20,7 +20,8 @@
 
 /*!
  * Constructs a new SugarSoap object.
- * \param[in] strurl SugarCRM SOAP API URL
+ * \param strurl SugarCRM SOAP API URL
+ * \param[in] sid    ID of the session to be reused
  */
 SugarSoap::SugarSoap(QString strurl, QString sid): soap_http(this)
 {
