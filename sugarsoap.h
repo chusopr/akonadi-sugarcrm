@@ -18,6 +18,7 @@ class SugarSoap : public QObject
     QString login(const QString &user, const QString &pass);
     QStringList *getEntries(const QString &module);
     QHash<QString, QString>* getEntry(const QString &module, const QString &id);
+    bool editEntry(const QString &module, const QString &id, QHash<QString, QString> &entry);
 
   Q_SIGNALS:
     void loggedIn();
@@ -27,6 +28,7 @@ class SugarSoap : public QObject
     void getLoginResponse();
     void entriesReady();
     void entryReady();
+    void getResponse();
 
   private:
     QtSoapHttpTransport soap_http;
@@ -35,6 +37,7 @@ class SugarSoap : public QObject
     QString module;
     QStringList *entries;
     QHash<QString, QString>* entry;
+    bool return_value;
 };
 
 #endif

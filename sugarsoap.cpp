@@ -270,6 +270,106 @@ QHash<QString, QString>* SugarSoap::getEntry(const QString &module, const QStrin
   return entry;
 }
 
+bool SugarSoap::editEntry(const QString &module, const QString &id, QHash<QString, QString> &entry)
+{
+  // Check that the request module is one of the ones we allow
+  if (!SugarCrmResource::Modules.contains(module))
+  {
+    qDebug("Invalid module requested");
+    // TODO emit something?
+    return false;
+  }
+
+  // TODO move this check to login method
+  // Check if we are logged in
+  if ((session_id.isNull()) || (session_id.isEmpty()))
+  {
+    this->login(Settings::self()->username(), Settings::self()->password());
+    if ((session_id.isEmpty()) || (session_id.isNull())) // login failed
+      return false;
+  }
+
+  this->module = module;
+
+  // Build the request
+  QtSoapMessage soap_request;
+  soap_request.setMethod("set_entry");
+
+  /* SOAP method arguments:
+   *   session:         session ID received in login response
+   *   module_name:     module we want to get the data from
+   *   name_value_list: array of the fields we are going to change and their values
+   */
+  QtSoapArray *name_value_list = new QtSoapArray(QtSoapQName("name_value_list"), QtSoapType::Struct, (entry.count()+1));
+  QtSoapStruct *soap_field = new QtSoapStruct(QtSoapQName("item"));
+  soap_field->insert(new QtSoapSimpleType(QtSoapQName("name"), "id"));
+  soap_field->insert(new QtSoapSimpleType(QtSoapQName("value"), id));
+  name_value_list->append(soap_field);
+  for (QHash<QString, QString>::iterator field = entry.begin(); field != entry.end(); field++)
+  {
+    soap_field = new QtSoapStruct(QtSoapQName("item"));
+    soap_field->insert(new QtSoapSimpleType(QtSoapQName("name"), field.key()));
+    soap_field->insert(new QtSoapSimpleType(QtSoapQName("value"), field.value()));
+    name_value_list->append(soap_field);
+  }
+
+  soap_request.addMethodArgument("session", "", session_id);
+  soap_request.addMethodArgument("module_name", "", module);
+
+  soap_request.addMethodArgument(name_value_list);
+
+  /*!
+   * Connects responseReady() event in QtSoapHttpTransport to
+   * getResponse() method in this
+   */
+  connect(&soap_http, SIGNAL(responseReady()), this, SLOT(getResponse()));
+  QEventLoop loop;
+  connect(&soap_http, SIGNAL(responseReady()), &loop, SLOT(quit()));
+  // Finally, send the request
+  soap_http.setHost(url.host(),
+                    url.toString().startsWith("https://")? true : false,
+                    url.toString().startsWith("https://")? url.port(443) : url.port(80));
+  soap_http.setAction(url.toString());
+  soap_http.submitRequest(soap_request, url.path() == ""? "/" : url.path());
+  loop.exec();
+  disconnect(&soap_http, SIGNAL(responseReady()), this, SLOT(getResponse()));
+  disconnect(&soap_http, SIGNAL(responseReady()), &loop, SLOT(quit()));
+  return return_value;
+}
+
+// TODO other signals should call this one to check return value
+void SugarSoap::getResponse()
+{
+  // Get response
+  const QtSoapMessage &message = soap_http.getResponse();
+
+  // Check if everything went right..
+  if (message.isFault())
+  {
+    qDebug("Error: %s", message.faultString().value().toString().toLatin1().constData());
+    return_value = false;
+  }
+  else
+  {
+    // .. then get returned data
+    const QtSoapType &response = message.method()["return"];
+
+    // Was request rejected with error?
+    if (response["error"]["number"].value().toString() != "0")
+    {
+      qDebug("Request failed");
+      qDebug("%s", response["error"]["name"].value().toString().toLatin1().constData());
+      qDebug("%s", response["error"]["description"].value().toString().toLatin1().constData());
+      return_value = false;
+    }
+    else
+    {
+      qDebug("Request OK");
+      return_value = true;
+    }
+  }
+}
+
 /*!
  * Handles server response after request
  */
