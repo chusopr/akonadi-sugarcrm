@@ -270,7 +270,7 @@ QHash<QString, QString>* SugarSoap::getEntry(const QString &module, const QStrin
   return entry;
 }
 
-bool SugarSoap::editEntry(const QString &module, const QString &id, QHash<QString, QString> &entry)
+bool SugarSoap::editEntry(const QString &module, const QString &id, QHash<QString, QString> entry)
 {
   // Check that the request module is one of the ones we allow
   if (!SugarCrmResource::Modules.contains(module))

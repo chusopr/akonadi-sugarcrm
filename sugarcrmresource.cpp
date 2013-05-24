@@ -40,12 +40,14 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   modinfo->fields << "first_name" << "last_name" << "email1";
   modinfo->mimes << "text/directory";
   modinfo->payload_function = &SugarCrmResource::contactPayload;
+  modinfo->soap_function = &SugarCrmResource::contactSoap;
   SugarCrmResource::Modules["Contacts"] = SugarCrmResource::Modules["Leads"] = *modinfo;
 
   modinfo = new module;
   modinfo->fields << "name" << "description" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
   modinfo->mimes << KCalCore::Todo::todoMimeType();
   modinfo->payload_function = &SugarCrmResource::taskPayload;
+  modinfo->soap_function = &SugarCrmResource::taskSoap;
   SugarCrmResource::Modules["Tasks"] = *modinfo;
 
   modinfo = new module;
@@ -66,7 +68,7 @@ SugarCrmResource::~SugarCrmResource()
 }
 
 /*!
- * Called by Akonadi to know wich collections we are going to provide
+ * Called by Akonadi to know which collections we are going to provide
  */
 void SugarCrmResource::retrieveCollections()
 {
@@ -104,7 +106,7 @@ void SugarCrmResource::retrieveCollections()
  */
 void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
 {
-  // FIXME for now, we are storing in remoteID wich module the item belongs to
+  // FIXME for now, we are storing in remoteID which module the item belongs to
   QString mod = collection.remoteId().replace(QRegExp("@.*"), "");
   // Check if the module we got is valid
   if (!SugarCrmResource::Modules.contains(mod))
@@ -135,7 +137,7 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
 bool SugarCrmResource::retrieveItem( const Akonadi::Item &item, const QSet<QByteArray> &parts )
 {
   Q_UNUSED( parts );
-  // FIXME for now, we are storing in remoteID wich module the item belongs to
+  // FIXME for now, we are storing in remoteID which module the item belongs to
   QString mod = item.remoteId().replace(QRegExp("@.*"), "");
   // Check if the module we got is valid
   if (!SugarCrmResource::Modules.contains(mod))
@@ -173,7 +175,26 @@ Item SugarCrmResource::contactPayload(const QHash<QString, QString> &soapItem, c
 }
 
 /*!
- * Receives an an Akonadi::Item and a SOAP assocative array that
+ * Receives an Akonadi::Item containing KABC::Addressee payload and
+ * converts this payload to a SOAP assocative array that to be stored
+ * in SugarCRM
+ * \param[in] item the item whose payload that will be converted
+ * \return A new QHash dictionary with item attributes
+ */
+QHash<QString, QString> SugarCrmResource::contactSoap(const Akonadi::Item &item)
+{
+  const KABC::Addressee &payload = item.payload<KABC::Addressee>();
+
+  QHash<QString, QString> soapItem;
+
+  soapItem["first_name"] = payload.givenName();
+  soapItem["last_name"] = payload.familyName();
+  soapItem["email1"] = payload.emails().at(0);
+  return soapItem;
+}
+
+/*!
+ * Receives an Akonadi::Item and a SOAP assocative array that
  * contains a calendar task to be set as item's payload
  * \param[in] soapItem The associative array containing a calendar task
  * \param[in] item the item whom payload will be populated
@@ -193,6 +214,34 @@ Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, cons
   Item newItem(item);
   newItem.setPayload<KCalCore::Todo::Ptr>(event);
   return newItem;
+}
+
+/*!
+ * Receives an Akonadi::Item containing KABC::Addressee payload and
+ * converts this payload to a SOAP assocative array that to be stored
+ * in SugarCRM
+ * \param[in] item the item whose payload that will be converted
+ * \return A new QHash dictionary with item attributes
+ */
+QHash<QString, QString> SugarCrmResource::taskSoap(const Akonadi::Item &item)
+{
+  const KCalCore::Todo::Ptr &payload = item.payload<KCalCore::Todo::Ptr>();
+
+  QHash<QString, QString> soapItem;
+
+  soapItem["name"] = payload->summary();
+  soapItem["description"] = payload->description();
+  if (payload->hasStartDate())
+  {
+    soapItem["date_start"] = payload->dtStart().toString(KDateTime::ISODate);
+    soapItem["date_start_flag"] = "1";
+  }
+  if (payload->hasDueDate())
+  {
+    soapItem["date_due"] = payload->dtDue().toString(KDateTime::ISODate);
+    soapItem["date_due_flag"] = "1";
+  }
+  return soapItem;
 }
 
 void SugarCrmResource::aboutToQuit()
@@ -251,6 +300,7 @@ void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Coll
   Q_UNUSED(collection);
 }
 
+// FIXME: Items appear as changed in Akonadi even if update to SugarCRM failed
 void SugarCrmResource::itemChanged( const Akonadi::Item &item, const QSet<QByteArray> &parts )
 {
   Q_UNUSED(parts);
@@ -267,22 +317,14 @@ void SugarCrmResource::itemChanged( const Akonadi::Item &item, const QSet<QByteA
   // Call function pointer to the function that returns the appropi
   //QHash<QString, QString> *soapItem = soap->getEntry(mod, item.remoteId().replace(QRegExp(".*@"), ""));
 
-  if ( item.hasPayload<KABC::Addressee>() )
-  {
-    QHash<QString, QString> soapEntry;
-    // TODO: more fields
-    soapEntry["first_name"] = item.payload<KABC::Addressee>().givenName();
-    soapEntry["last_name"] = item.payload<KABC::Addressee>().familyName();
-    if (item.payload<KABC::Addressee>().emails().length()>0)
-      soapEntry["email1"] = item.payload<KABC::Addressee>().emails()[0];
+  soap = new SugarSoap(Settings::self()->url().url());
 
-    soap = new SugarSoap(Settings::self()->url().url());
-    // TODO check returned value
-    // Call function pointer to the function that returns the appropi
-    soap->editEntry(mod, item.remoteId().replace(QRegExp(".*@"), ""), soapEntry);
-  }
-
-  changeCommitted(Item(item));
+  if (soap->editEntry(
+    mod,
+    item.remoteId().replace(QRegExp(".*@"), ""),
+    (this->*SugarCrmResource::Modules[mod].soap_function)(item)
+  ))
+    changeCommitted(Item(item));
 }
 
 void SugarCrmResource::itemRemoved( const Akonadi::Item &item )

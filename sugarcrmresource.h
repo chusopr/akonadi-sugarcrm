@@ -33,6 +33,8 @@ class SugarCrmResource : public Akonadi::ResourceBase,
     SugarConfig configDlg;
     Akonadi::Item contactPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item);
     Akonadi::Item taskPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item);
+    QHash<QString, QString> contactSoap(const Akonadi::Item &item);
+    QHash<QString, QString> taskSoap(const Akonadi::Item &item);
 
     SugarSoap *soap;
 };
@@ -42,6 +44,7 @@ struct module
   QStringList fields;
   QStringList mimes;
   Akonadi::Item (SugarCrmResource::*payload_function)(const QHash<QString, QString> &, const Akonadi::Item &);
+  QHash<QString, QString> (SugarCrmResource::*soap_function)(const Akonadi::Item &);
 };
 
 #endif
