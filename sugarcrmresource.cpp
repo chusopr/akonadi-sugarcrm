@@ -294,10 +294,27 @@ void SugarCrmResource::configure(const WId windowId)
   synchronize();
 }
 
+// FIXME: Items appear as added in Akonadi even if adding to SugarCRM failed
 void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Collection &collection )
 {
-  Q_UNUSED(item);
-  Q_UNUSED(collection);
+  QString mod = collection.remoteId().replace(QRegExp("@.*"), "");
+  // Check if the module we got is valid
+  if (!SugarCrmResource::Modules.contains(mod))
+    return;
+
+  QString id = "";
+
+  soap = new SugarSoap(Settings::self()->url().url());
+  if (soap->editEntry(
+    mod,
+    (this->*SugarCrmResource::Modules[mod].soap_function)(item),
+    id
+  ))
+  {
+    Item newItem(item);
+    newItem.setRemoteId(mod + "@" + id);
+    changeCommitted(Item(newItem));
+  }
 }
 
 // FIXME: Items appear as changed in Akonadi even if update to SugarCRM failed
@@ -311,18 +328,12 @@ void SugarCrmResource::itemChanged( const Akonadi::Item &item, const QSet<QByteA
   if (!SugarCrmResource::Modules.contains(mod))
     return;
 
-  // Request data to SugarSoap
-  soap = new SugarSoap(Settings::self()->url().url());
-  // TODO check returned value
-  // Call function pointer to the function that returns the appropi
-  //QHash<QString, QString> *soapItem = soap->getEntry(mod, item.remoteId().replace(QRegExp(".*@"), ""));
-
   soap = new SugarSoap(Settings::self()->url().url());
 
   if (soap->editEntry(
     mod,
-    item.remoteId().replace(QRegExp(".*@"), ""),
-    (this->*SugarCrmResource::Modules[mod].soap_function)(item)
+    (this->*SugarCrmResource::Modules[mod].soap_function)(item),
+    item.remoteId().replace(QRegExp(".*@"), "")
   ))
     changeCommitted(Item(item));
 }

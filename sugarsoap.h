@@ -18,7 +18,7 @@ class SugarSoap : public QObject
     QString login(const QString &user, const QString &pass);
     QStringList *getEntries(const QString &module);
     QHash<QString, QString>* getEntry(const QString &module, const QString &id);
-    bool editEntry(const QString &module, const QString &id, QHash<QString, QString> entry);
+    bool editEntry(const QString &module, QHash<QString, QString> entry, QString &id);
 
   Q_SIGNALS:
     void loggedIn();
