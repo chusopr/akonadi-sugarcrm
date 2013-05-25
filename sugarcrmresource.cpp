@@ -189,7 +189,8 @@ QHash<QString, QString> SugarCrmResource::contactSoap(const Akonadi::Item &item)
 
   soapItem["first_name"] = payload.givenName();
   soapItem["last_name"] = payload.familyName();
-  soapItem["email1"] = payload.emails().at(0);
+  if (payload.emails().length() >= 1)
+    soapItem["email1"] = payload.emails().at(0);
   return soapItem;
 }
 
