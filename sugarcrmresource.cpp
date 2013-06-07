@@ -341,7 +341,22 @@ void SugarCrmResource::itemChanged( const Akonadi::Item &item, const QSet<QByteA
 
 void SugarCrmResource::itemRemoved( const Akonadi::Item &item )
 {
-  Q_UNUSED(item);
+  // FIXME for now, we are storing in remoteID which module the item belongs to
+  QString mod = item.remoteId().replace(QRegExp("@.*"), "");
+  // Check if the module we got is valid
+  if (!SugarCrmResource::Modules.contains(mod))
+    return;
+  soap = new SugarSoap(Settings::self()->url().url());
+
+  QHash<QString, QString> soapItem;
+  soapItem["deleted"] = "1";
+
+  if (soap->editEntry(
+    mod,
+    soapItem,
+    item.remoteId().replace(QRegExp(".*@"), "")
+  ))
+    changeCommitted(Item(item));
 }
 
 AKONADI_RESOURCE_MAIN( SugarCrmResource );
