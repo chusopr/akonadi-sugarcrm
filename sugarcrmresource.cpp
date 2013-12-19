@@ -37,21 +37,21 @@ SugarCrmResource::SugarCrmResource( const QString &id )
 {
   // Populate Map of valid modules and required fields for each module
   module *modinfo = new module;
-  modinfo->fields << "first_name" << "last_name" << "email1";
+  modinfo->fields << "id" << "first_name" << "last_name" << "email1";
   modinfo->mimes << "text/directory";
   modinfo->payload_function = &SugarCrmResource::contactPayload;
   modinfo->soap_function = &SugarCrmResource::contactSoap;
   SugarCrmResource::Modules["Contacts"] = SugarCrmResource::Modules["Leads"] = *modinfo;
 
   modinfo = new module;
-  modinfo->fields << "name" << "description" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
+  modinfo->fields << "id" << "name" << "description" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
   modinfo->mimes << KCalCore::Todo::todoMimeType();
   modinfo->payload_function = &SugarCrmResource::taskPayload;
   modinfo->soap_function = &SugarCrmResource::taskSoap;
   SugarCrmResource::Modules["Tasks"] = *modinfo;
 
   modinfo = new module;
-  modinfo->fields << "name" << "description" << "case_number" << "date_due" << "date_start_flag" << "date_start";
+  modinfo->fields << "id" << "name" << "description" << "case_number" << "date_due" << "date_start_flag" << "date_start";
   modinfo->mimes << KCalCore::Todo::todoMimeType();
   // TODO: where status is active
   SugarCrmResource::Modules["Cases"] = *modinfo;
@@ -204,6 +204,7 @@ QHash<QString, QString> SugarCrmResource::contactSoap(const Akonadi::Item &item)
 Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item)
 {
   KCalCore::Todo::Ptr event(new KCalCore::Todo);
+  event->setUid(item.remoteId().replace(QRegExp("@.*"), "") + "@" + soapItem["id"]);
   event->setSummary(soapItem["name"]);
   event->setDescription(soapItem["description"]);
   // FIXME: creation date
@@ -314,7 +315,7 @@ void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Coll
   {
     Item newItem(item);
     newItem.setRemoteId(mod + "@" + id);
-    changeCommitted(Item(newItem));
+    changeCommitted(newItem);
   }
 }
 
