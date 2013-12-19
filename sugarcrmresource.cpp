@@ -204,7 +204,7 @@ QHash<QString, QString> SugarCrmResource::contactSoap(const Akonadi::Item &item)
 Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item)
 {
   KCalCore::Todo::Ptr event(new KCalCore::Todo);
-  event->setUid(item.remoteId().replace(QRegExp("@.*"), "") + "@" + soapItem["id"]);
+  event->setUid(item.remoteId().replace(QRegExp("@.*"), "") + "@" + soapItem["id"]); // FIXME
   event->setSummary(soapItem["name"]);
   event->setDescription(soapItem["description"]);
   // FIXME: creation date
@@ -315,6 +315,7 @@ void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Coll
   {
     Item newItem(item);
     newItem.setRemoteId(mod + "@" + id);
+    newItem.clearPayload(); // FIXME
     changeCommitted(newItem);
   }
 }
