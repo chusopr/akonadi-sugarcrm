@@ -28,3 +28,18 @@ QString SugarConfig::password()
 {
     return ui->password->text();
 }
+
+void SugarConfig::setUrl(QString s)
+{
+    ui->url->setText(s);
+}
+
+void SugarConfig::setUsername(QString s)
+{
+    ui->username->setText(s);
+}
+
+void SugarConfig::setPassword(QString s)
+{
+    ui->password->setText(s);
+}

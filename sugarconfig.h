@@ -17,6 +17,9 @@ public:
     QString url();
     QString username();
     QString password();
+    void setUrl(QString s);
+    void setUsername(QString s);
+    void setPassword(QString s);
 
 private:
     Ui::SugarConfig *ui;

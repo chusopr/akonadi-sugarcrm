@@ -262,8 +262,10 @@ void SugarCrmResource::configure(const WId windowId)
 {
   Q_UNUSED( windowId );
 
-  // TODO: populate form fields
   KWindowSystem::setMainWindow(&configDlg, windowId);
+  configDlg.setUrl(Settings::self()->url().prettyUrl());
+  configDlg.setUsername(Settings::self()->username());
+  configDlg.setPassword(Settings::self()->password());
 
   // Check if user clicked OK or Cancel
   if (configDlg.exec() == QDialog::Rejected)
