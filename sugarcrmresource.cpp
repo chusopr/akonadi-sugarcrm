@@ -76,28 +76,33 @@ void SugarCrmResource::retrieveCollections()
   KUrl url = KUrl(Settings::self()->url());
   if (!url.hasUser()) url.setUser(Settings::self()->username());
 
+  Collection root = Collection();
+  root.setContentMimeTypes(QStringList() << Collection::mimeType());
+  root.setRemoteId(url.url());
+  root.setName(i18n("SugarCRM resource at %1").arg(url.url()));
+  root.setParent(Collection::root());
+  // TODO root.setRights()
+
   // Add a collection for each module queried
   Collection c;
-  c.setParent(Collection::root());
+  c.setParent(root);
   c.setRemoteId("Contacts@" + url.url());
   c.setName(i18n("Contacts from SugarCRM resource at %1").arg(url.url()));
   c.setContentMimeTypes(QStringList("text/directory"));
 
   Collection l;
-  l.setParent(Collection::root());
+  l.setParent(root);
   l.setRemoteId("Leads@" + url.url());
   l.setName(i18n("Leads from SugarCRM resource at %1").arg(url.url()));
   l.setContentMimeTypes(QStringList("text/directory"));
 
   Collection t;
-  t.setParent(Collection::root());
+  t.setParent(root);
   t.setRemoteId("Tasks@" + url.url());
   t.setName(i18n("Tasks from SugarCRM resource at %1").arg(url.url()));
   t.setContentMimeTypes(QStringList(KCalCore::Todo::todoMimeType()));
 
-  Collection::List list;
-  list << c << l << t;
-  collectionsRetrieved(list);
+  collectionsRetrieved(Collection::List() << root << c << l << t);
 }
 
 /*!
