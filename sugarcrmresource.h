@@ -15,6 +15,7 @@ class SugarCrmResource : public Akonadi::ResourceBase,
   public:
     SugarCrmResource(const QString &id);
     ~SugarCrmResource();
+    // TODO replace QString with ModuleAttribute::ModuleTypes
     static QHash<QString,module> Modules;
 
   public Q_SLOTS:

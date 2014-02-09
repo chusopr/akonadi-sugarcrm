@@ -9,6 +9,7 @@
 #include "sugarcrmresource.h"
 #include "sugarsoap.h"
 #include "sugarconfig.h"
+#include "moduleattribute.h"
 
 #include "settings.h"
 #include "settingsadaptor.h"
@@ -21,6 +22,7 @@
 #include <Akonadi/ItemFetchScope>
 #include <Akonadi/ChangeRecorder>
 #include <KLocalizedString>
+#include <Akonadi/AttributeFactory>
 
 using namespace Akonadi;
 
@@ -76,6 +78,8 @@ void SugarCrmResource::retrieveCollections()
   KUrl url = KUrl(Settings::self()->url());
   if (!url.hasUser()) url.setUser(Settings::self()->username());
 
+  AttributeFactory::registerAttribute<ModuleAttribute>();
+
   Collection root = Collection();
   root.setContentMimeTypes(QStringList() << Collection::mimeType());
   root.setRemoteId(url.url());
@@ -83,26 +87,38 @@ void SugarCrmResource::retrieveCollections()
   root.setParent(Collection::root());
   // TODO root.setRights()
 
+  QMap<QString, Akonadi::Collection> m_collections;
+  m_collections["RootCollection"] = root;
+
   // Add a collection for each module queried
   Collection c;
   c.setParent(root);
   c.setRemoteId("Contacts@" + url.url());
   c.setName(i18n("Contacts from SugarCRM resource at %1").arg(url.url()));
   c.setContentMimeTypes(QStringList("text/directory"));
+  ModuleAttribute *attr = new ModuleAttribute(ModuleAttribute::Contacts);
+  c.addAttribute(attr);
+  m_collections[c.remoteId()] = c;
 
   Collection l;
   l.setParent(root);
   l.setRemoteId("Leads@" + url.url());
+  attr = new ModuleAttribute(ModuleAttribute::Leads);
+  l.addAttribute(attr);
   l.setName(i18n("Leads from SugarCRM resource at %1").arg(url.url()));
   l.setContentMimeTypes(QStringList("text/directory"));
+  m_collections[l.remoteId()] = l;
 
   Collection t;
   t.setParent(root);
   t.setRemoteId("Tasks@" + url.url());
+  attr = new ModuleAttribute(ModuleAttribute::Tasks);
+  t.addAttribute(attr);
   t.setName(i18n("Tasks from SugarCRM resource at %1").arg(url.url()));
   t.setContentMimeTypes(QStringList(KCalCore::Todo::todoMimeType()));
+  m_collections[t.remoteId()] = t;
 
-  collectionsRetrieved(Collection::List() << root << c << l << t);
+  collectionsRetrieved(m_collections.values());
 }
 
 /*!
@@ -111,8 +127,10 @@ void SugarCrmResource::retrieveCollections()
  */
 void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
 {
-  // FIXME for now, we are storing in remoteID which module the item belongs to
-  QString mod = collection.remoteId().replace(QRegExp("@.*"), "");
+  // FIXME Use collection attribute instead of item attribute
+  AttributeFactory::registerAttribute<ModuleAttribute>();
+  ModuleAttribute *attr = collection.attribute<ModuleAttribute>();
+  QString mod = QString(attr->serialized());
   // Check if the module we got is valid
   if (!SugarCrmResource::Modules.contains(mod))
     return;
@@ -126,8 +144,25 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
   foreach (QString itemId, (*soapItems))
   {
     Item item(SugarCrmResource::Modules[mod].mimes[0]);
-    item.setRemoteId(mod + "@" + itemId);
+    item.setRemoteId(itemId);
+    soap = new SugarSoap(Settings::self()->url().url());
+    // TODO check returned value
+    // Call function pointer to the function that returns the appropi
+    QHash<QString, QString> *soapItem = soap->getEntry(mod, item.remoteId());
+    item = (this->*SugarCrmResource::Modules[mod].payload_function)(*soapItem, item);
     item.setParentCollection(collection);
+    ModuleAttribute::ModuleTypes m;
+    if (mod == "Contacts")
+      m = ModuleAttribute::Contacts;
+    else if (mod == "Leads")
+      m = ModuleAttribute::Leads;
+    else if (mod == "Tasks")
+      m = ModuleAttribute::Tasks;
+    else
+      return;
+    ModuleAttribute *attr = new ModuleAttribute(m);
+    item.addAttribute(attr);
+
     items << item;
   }
 
@@ -141,9 +176,12 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
  */
 bool SugarCrmResource::retrieveItem( const Akonadi::Item &item, const QSet<QByteArray> &parts )
 {
+  /* FIXME
   Q_UNUSED( parts );
-  // FIXME for now, we are storing in remoteID which module the item belongs to
-  QString mod = item.remoteId().replace(QRegExp("@.*"), "");
+  AttributeFactory::registerAttribute<ModuleAttribute>();
+  // FIXME Use collection attribute instead of item attribute
+  ModuleAttribute *attr = item.parentCollection().attribute<ModuleAttribute>();
+  QString mod = QString(attr->serialized());
   // Check if the module we got is valid
   if (!SugarCrmResource::Modules.contains(mod))
     return false;
@@ -152,9 +190,10 @@ bool SugarCrmResource::retrieveItem( const Akonadi::Item &item, const QSet<QByte
   soap = new SugarSoap(Settings::self()->url().url());
   // TODO check returned value
   // Call function pointer to the function that returns the appropi
-  QHash<QString, QString> *soapItem = soap->getEntry(mod, item.remoteId().replace(QRegExp(".*@"), ""));
+  QHash<QString, QString> *soapItem = soap->getEntry(mod, item.remoteId());
 
-  itemRetrieved((this->*SugarCrmResource::Modules[mod].payload_function)(*soapItem, item));
+  itemRetrieved((this->*SugarCrmResource::Modules[mod].payload_function)(*soapItem, item));*/
+  itemRetrieved(item);
   return true;
 }
 
@@ -209,7 +248,9 @@ QHash<QString, QString> SugarCrmResource::contactSoap(const Akonadi::Item &item)
 Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item)
 {
   KCalCore::Todo::Ptr event(new KCalCore::Todo);
-  event->setUid(item.remoteId().replace(QRegExp("@.*"), "") + "@" + soapItem["id"]); // FIXME
+  event->setUid(soapItem["id"]);
+  /* ModuleAttribute *attr = new ModuleAttribute(ModuleAttribute::Tasks);
+  item.addAttribute(attr); // FIXME */
   event->setSummary(soapItem["name"]);
   event->setDescription(soapItem["description"]);
   // FIXME: creation date
@@ -306,7 +347,7 @@ void SugarCrmResource::configure(const WId windowId)
 // FIXME: Items appear as added in Akonadi even if adding to SugarCRM failed
 void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Collection &collection )
 {
-  QString mod = collection.remoteId().replace(QRegExp("@.*"), "");
+  QString mod = QString(collection.attribute<ModuleAttribute>()->serialized());
   // Check if the module we got is valid
   if (!SugarCrmResource::Modules.contains(mod))
     return;
@@ -321,8 +362,19 @@ void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Coll
   ))
   {
     Item newItem(item);
-    newItem.setRemoteId(mod + "@" + id);
+    newItem.setRemoteId(id);
     newItem.clearPayload(); // FIXME
+    ModuleAttribute::ModuleTypes m;
+    if (mod == "Contacts")
+      m = ModuleAttribute::Contacts;
+    else if (mod == "Leads")
+      m = ModuleAttribute::Leads;
+    else if (mod == "Tasks")
+      m = ModuleAttribute::Tasks;
+    else
+      return;
+    ModuleAttribute *attr = new ModuleAttribute(m);
+    newItem.addAttribute(attr);
     changeCommitted(newItem);
   }
 }
@@ -333,7 +385,7 @@ void SugarCrmResource::itemChanged( const Akonadi::Item &item, const QSet<QByteA
   Q_UNUSED(parts);
 
   // FIXME for now, we are storing in remoteID which module the item belongs to
-  QString mod = item.remoteId().replace(QRegExp("@.*"), "");
+  QString mod = QString(item.attribute<ModuleAttribute>()->serialized());
   // Check if the module we got is valid
   if (!SugarCrmResource::Modules.contains(mod))
     return;
@@ -343,7 +395,7 @@ void SugarCrmResource::itemChanged( const Akonadi::Item &item, const QSet<QByteA
   if (soap->editEntry(
     mod,
     (this->*SugarCrmResource::Modules[mod].soap_function)(item),
-    item.remoteId().replace(QRegExp(".*@"), "")
+    item.remoteId()
   ))
     changeCommitted(Item(item));
 }
@@ -351,7 +403,7 @@ void SugarCrmResource::itemChanged( const Akonadi::Item &item, const QSet<QByteA
 void SugarCrmResource::itemRemoved( const Akonadi::Item &item )
 {
   // FIXME for now, we are storing in remoteID which module the item belongs to
-  QString mod = item.remoteId().replace(QRegExp("@.*"), "");
+  QString mod = QString(item.attribute<ModuleAttribute>()->serialized());
   // Check if the module we got is valid
   if (!SugarCrmResource::Modules.contains(mod))
     return;
@@ -363,7 +415,7 @@ void SugarCrmResource::itemRemoved( const Akonadi::Item &item )
   if (soap->editEntry(
     mod,
     soapItem,
-    item.remoteId().replace(QRegExp(".*@"), "")
+    item.remoteId()
   ))
     changeCommitted(Item(item));
 }
