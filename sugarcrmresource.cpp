@@ -55,6 +55,7 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   modinfo = new module;
   modinfo->fields << "id" << "name" << "description" << "case_number" << "date_due" << "date_start_flag" << "date_start";
   modinfo->mimes << KCalCore::Todo::todoMimeType();
+  // TODO: payload
   // TODO: where status is active
   SugarCrmResource::Modules["Cases"] = *modinfo;
 
@@ -99,6 +100,8 @@ void SugarCrmResource::retrieveCollections()
   ModuleAttribute *attr = new ModuleAttribute(ModuleAttribute::Contacts);
   c.addAttribute(attr);
   m_collections[c.remoteId()] = c;
+
+  // TODO cases
 
   Collection l;
   l.setParent(root);
@@ -145,23 +148,17 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
   {
     Item item(SugarCrmResource::Modules[mod].mimes[0]);
     item.setRemoteId(itemId);
+
+    // TODO: move to retrieveItem()
     soap = new SugarSoap(Settings::self()->url().url());
     // TODO check returned value
     // Call function pointer to the function that returns the appropi
     QHash<QString, QString> *soapItem = soap->getEntry(mod, item.remoteId());
     item = (this->*SugarCrmResource::Modules[mod].payload_function)(*soapItem, item);
     item.setParentCollection(collection);
-    ModuleAttribute::ModuleTypes m;
-    if (mod == "Contacts")
-      m = ModuleAttribute::Contacts;
-    else if (mod == "Leads")
-      m = ModuleAttribute::Leads;
-    else if (mod == "Tasks")
-      m = ModuleAttribute::Tasks;
-    else
-      return;
-    ModuleAttribute *attr = new ModuleAttribute(m);
-    item.addAttribute(attr);
+    // end of code to move to retrieveItem()
+
+    item.addAttribute(attr->clone());
 
     items << item;
   }
@@ -176,23 +173,7 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
  */
 bool SugarCrmResource::retrieveItem( const Akonadi::Item &item, const QSet<QByteArray> &parts )
 {
-  /* FIXME
   Q_UNUSED( parts );
-  AttributeFactory::registerAttribute<ModuleAttribute>();
-  // FIXME Use collection attribute instead of item attribute
-  ModuleAttribute *attr = item.parentCollection().attribute<ModuleAttribute>();
-  QString mod = QString(attr->serialized());
-  // Check if the module we got is valid
-  if (!SugarCrmResource::Modules.contains(mod))
-    return false;
-
-  // Request data to SugarSoap
-  soap = new SugarSoap(Settings::self()->url().url());
-  // TODO check returned value
-  // Call function pointer to the function that returns the appropi
-  QHash<QString, QString> *soapItem = soap->getEntry(mod, item.remoteId());
-
-  itemRetrieved((this->*SugarCrmResource::Modules[mod].payload_function)(*soapItem, item));*/
   itemRetrieved(item);
   return true;
 }
