@@ -39,11 +39,28 @@ SugarCrmResource::SugarCrmResource( const QString &id )
 {
   // Populate Map of valid modules and required fields for each module
   module *modinfo = new module;
-  modinfo->fields << "id" << "first_name" << "last_name" << "email1";
+  modinfo->fields
+    << "id" << "salutation" << "first_name" << "last_name" << "birthdate"
+    << "email1" << "email2"
+    << "phone_home" << "phone_mobile" << "phone_work" << "phone_fax" << "phone_other"
+    << "primary_address_street" << "primary_address_city" << "primary_address_state" << "primary_address_postalcode" << "primary_address_country"
+    << "alt_address_street" << "alt_address_city" << "alt_address_state" << "alt_address_postalcode" << "alt_address_country"
+    << "account_name" << "title" << "department" << "description";
+  // Remaining available fields:
+  // date_entered, date_modified, modified_user_id, modified_by_name,
+  // created_by, created_by_name, deleted, assigned_user_id,
+  // assigned_user_name, do_not_call, assistant, assistant_phone,
+  // lead_source, account_id, opportunity_role_fields, reports_to_id
+  // report_to_name, campaign_id, campaign_name, c_accept_status_fields
+  // m_accept_status_fields
   modinfo->mimes << "text/directory";
   modinfo->payload_function = &SugarCrmResource::contactPayload;
   modinfo->soap_function = &SugarCrmResource::contactSoap;
   SugarCrmResource::Modules["Contacts"] = SugarCrmResource::Modules["Leads"] = *modinfo;
+  phones["phone_home"]   = KABC::PhoneNumber::Home;
+  phones["phone_mobile"] = KABC::PhoneNumber::Cell;
+  phones["phone_work"]   = KABC::PhoneNumber::Work;
+  phones["phone_fax"]    = KABC::PhoneNumber::Fax;
 
   modinfo = new module;
   modinfo->fields << "id" << "name" << "description" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
@@ -187,13 +204,72 @@ bool SugarCrmResource::retrieveItem( const Akonadi::Item &item, const QSet<QByte
  */
 Item SugarCrmResource::contactPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item)
 {
-  // TODO: more fields
   KABC::Addressee addressee;
+  addressee.setPrefix(soapItem["salutation"]);
   addressee.setGivenName(soapItem["first_name"]);
   addressee.setFamilyName(soapItem["last_name"]);
+  addressee.setBirthday(QDateTime::fromString(soapItem["birthdate"], Qt::ISODate));
+
+  if ((!soapItem["primary_address_street"].trimmed().isEmpty()) ||
+      (!soapItem["primary_address_city"].trimmed().isEmpty()) ||
+      (!soapItem["primary_address_state"].trimmed().isEmpty()) ||
+      (!soapItem["primary_address_postalcode"].trimmed().isEmpty()) ||
+      (!soapItem["primary_address_country"].trimmed().isEmpty())
+     )
+  {
+    KABC::Address addr;
+    addr.setStreet(soapItem["primary_address_street"]);
+    addr.setLocality(soapItem["primary_address_city"]);
+    addr.setRegion(soapItem["primary_address_state"]);
+    addr.setPostalCode(soapItem["primary_address_postalcode"]);
+    addr.setCountry(soapItem["primary_address_country"]);
+    addr.setId("primary");
+    addressee.insertAddress(addr);
+  }
+
+  if ((!soapItem["alt_address_street"].trimmed().isEmpty()) ||
+      (!soapItem["alt_address_city"].trimmed().isEmpty()) ||
+      (!soapItem["alt_address_state"].trimmed().isEmpty()) ||
+      (!soapItem["alt_address_postalcode"].trimmed().isEmpty()) ||
+      (!soapItem["alt_address_country"].trimmed().isEmpty())
+     )
+  {
+    KABC::Address addr;
+    addr.setStreet(soapItem["alt_address_street"]);
+    addr.setLocality(soapItem["alt_address_city"]);
+    addr.setRegion(soapItem["alt_address_state"]);
+    addr.setPostalCode(soapItem["alt_address_postalcode"]);
+    addr.setCountry(soapItem["alt_address_country"]);
+    addr.setId("alt");
+    addressee.insertAddress(addr);
+  }
+
+  addressee.setOrganization(soapItem["account_name"]);
+  addressee.setTitle(soapItem["title"]);
+  addressee.setDepartment(soapItem["department"]);
+  addressee.setNote(soapItem["description"]);
+
+  for (QMap<QString, KABC::PhoneNumber::Type>::iterator phone_type = phones.begin(); phone_type != phones.end(); phone_type++)
+    if (!soapItem[phone_type.key()].trimmed().isEmpty())
+    {
+      KABC::PhoneNumber phone(soapItem[phone_type.key()], phone_type.value());
+      addressee.insertPhoneNumber(phone);
+    }
+
+  if (!soapItem["phone_other"].trimmed().isEmpty())
+  {
+    KABC::PhoneNumber phone(soapItem["phone_other"]);
+    phone.setId("other");
+    addressee.insertPhoneNumber(phone);
+  }
+
   QStringList emails;
-  emails << soapItem["email1"];
+  if (!soapItem["email1"].trimmed().isEmpty())
+    emails << soapItem["email1"];
+  if (!soapItem["email2"].trimmed().isEmpty())
+    emails << soapItem["email2"];
   addressee.setEmails(emails);
+
   Item newItem( item );
   newItem.setPayload<KABC::Addressee>( addressee );
   return newItem;
@@ -212,10 +288,47 @@ QHash<QString, QString> SugarCrmResource::contactSoap(const Akonadi::Item &item)
 
   QHash<QString, QString> soapItem;
 
+  soapItem["salutation"] = payload.prefix();
   soapItem["first_name"] = payload.givenName();
   soapItem["last_name"] = payload.familyName();
+  soapItem["birthdate"] = payload.birthday().toString(Qt::ISODate);
   if (payload.emails().length() >= 1)
     soapItem["email1"] = payload.emails().at(0);
+  if (payload.emails().length() >= 2)
+    soapItem["email1"] = payload.emails().at(1);
+
+  for (QMap<QString, KABC::PhoneNumber::Type>::iterator phone_type = phones.begin(); phone_type != phones.end(); phone_type++)
+    if (!payload.phoneNumber(phone_type.value()).isEmpty())
+      soapItem[phone_type.key()] = payload.phoneNumber(phone_type.value()).toString();
+
+  if (!payload.findPhoneNumber("other").isEmpty())
+    soapItem["phone_other"] = payload.findPhoneNumber("other").toString();
+
+  KABC::Address addr = payload.findAddress("primary");
+  if (!addr.isEmpty())
+  {
+    soapItem["primary_address_street"]     = addr.street();
+    soapItem["primary_address_city"]       = addr.locality();
+    soapItem["primary_address_state"]      = addr.region();
+    soapItem["primary_address_postalcode"] = addr.postalCode();
+    soapItem["primary_address_country"]    = addr.country();
+  }
+
+  addr = payload.findAddress("alt");
+  if (!addr.isEmpty())
+  {
+    soapItem["alt_address_street"]     = addr.street();
+    soapItem["alt_address_city"]       = addr.locality();
+    soapItem["alt_address_state"]      = addr.region();
+    soapItem["alt_address_postalcode"] = addr.postalCode();
+    soapItem["alt_address_country"]    = addr.country();
+  }
+
+  soapItem["account_name"] = payload.organization();
+  soapItem["title"]        = payload.title();
+  soapItem["department"]   = payload.department();
+  soapItem["description"]  = payload.note();
+
   return soapItem;
 }
 

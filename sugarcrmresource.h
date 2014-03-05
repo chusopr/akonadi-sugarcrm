@@ -1,7 +1,8 @@
 #ifndef SUGARCRMRESOURCE_H
 #define SUGARCRMRESOURCE_H
 
-#include <akonadi/resourcebase.h>
+#include <Akonadi/ResourceBase>
+#include <KABC/PhoneNumber>
 #include "sugarsoap.h"
 #include "sugarconfig.h"
 
@@ -38,6 +39,9 @@ class SugarCrmResource : public Akonadi::ResourceBase,
     QHash<QString, QString> taskSoap(const Akonadi::Item &item);
 
     SugarSoap *soap;
+
+  private:
+    QMap<QString, KABC::PhoneNumber::Type> phones;
 };
 
 struct module
