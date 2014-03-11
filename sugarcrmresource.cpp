@@ -80,6 +80,7 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   QDBusConnection::sessionBus().registerObject( QLatin1String( "/Settings" ),
                             Settings::self(), QDBusConnection::ExportAdaptors );
 
+  AttributeFactory::registerAttribute<ModuleAttribute>();
   changeRecorder()->itemFetchScope().fetchFullPayload();
 }
 
@@ -95,8 +96,6 @@ void SugarCrmResource::retrieveCollections()
   // Build URL used for remoteIds
   KUrl url = KUrl(Settings::self()->url());
   if (!url.hasUser()) url.setUser(Settings::self()->username());
-
-  AttributeFactory::registerAttribute<ModuleAttribute>();
 
   Collection root = Collection();
   root.setContentMimeTypes(QStringList() << Collection::mimeType());
@@ -147,8 +146,6 @@ void SugarCrmResource::retrieveCollections()
  */
 void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
 {
-  // FIXME Use collection attribute instead of item attribute
-  AttributeFactory::registerAttribute<ModuleAttribute>();
   ModuleAttribute *attr = collection.attribute<ModuleAttribute>();
   QString mod = QString(attr->serialized());
   // Check if the module we got is valid
@@ -174,8 +171,6 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
     item = (this->*SugarCrmResource::Modules[mod].payload_function)(*soapItem, item);
     item.setParentCollection(collection);
     // end of code to move to retrieveItem()
-
-    item.addAttribute(attr->clone());
 
     items << item;
   }
@@ -458,17 +453,6 @@ void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Coll
     Item newItem(item);
     newItem.setRemoteId(id);
     newItem.clearPayload(); // FIXME
-    ModuleAttribute::ModuleTypes m;
-    if (mod == "Contacts")
-      m = ModuleAttribute::Contacts;
-    else if (mod == "Leads")
-      m = ModuleAttribute::Leads;
-    else if (mod == "Tasks")
-      m = ModuleAttribute::Tasks;
-    else
-      return;
-    ModuleAttribute *attr = new ModuleAttribute(m);
-    newItem.addAttribute(attr);
     changeCommitted(newItem);
   }
 }
@@ -478,8 +462,7 @@ void SugarCrmResource::itemChanged( const Akonadi::Item &item, const QSet<QByteA
 {
   Q_UNUSED(parts);
 
-  // FIXME for now, we are storing in remoteID which module the item belongs to
-  QString mod = QString(item.attribute<ModuleAttribute>()->serialized());
+  QString mod = QString(item.parentCollection().attribute<ModuleAttribute>()->serialized());
   // Check if the module we got is valid
   if (!SugarCrmResource::Modules.contains(mod))
     return;
@@ -489,15 +472,14 @@ void SugarCrmResource::itemChanged( const Akonadi::Item &item, const QSet<QByteA
   if (soap->editEntry(
     mod,
     (this->*SugarCrmResource::Modules[mod].soap_function)(item),
-    item.remoteId()
+    new QString(item.remoteId())
   ))
     changeCommitted(Item(item));
 }
 
 void SugarCrmResource::itemRemoved( const Akonadi::Item &item )
 {
-  // FIXME for now, we are storing in remoteID which module the item belongs to
-  QString mod = QString(item.attribute<ModuleAttribute>()->serialized());
+  QString mod = QString(item.parentCollection().attribute<ModuleAttribute>()->serialized());
   // Check if the module we got is valid
   if (!SugarCrmResource::Modules.contains(mod))
     return;
