@@ -101,7 +101,7 @@ void SugarCrmResource::retrieveCollections()
   root.setContentMimeTypes(QStringList() << Collection::mimeType());
   root.setRemoteId(url.url());
   root.setName(i18n("SugarCRM resource at %1").arg(url.url()));
-  root.setParent(Collection::root());
+  root.setParentCollection(Collection::root());
   // TODO root.setRights()
 
   QMap<QString, Akonadi::Collection> m_collections;
@@ -109,7 +109,7 @@ void SugarCrmResource::retrieveCollections()
 
   // Add a collection for each module queried
   Collection c;
-  c.setParent(root);
+  c.setParentCollection(root);
   c.setRemoteId("Contacts@" + url.url());
   c.setName(i18n("Contacts from SugarCRM resource at %1").arg(url.url()));
   c.setContentMimeTypes(QStringList("text/directory"));
@@ -120,7 +120,7 @@ void SugarCrmResource::retrieveCollections()
   // TODO cases
 
   Collection l;
-  l.setParent(root);
+  l.setParentCollection(root);
   l.setRemoteId("Leads@" + url.url());
   attr = new ModuleAttribute(ModuleAttribute::Leads);
   l.addAttribute(attr);
@@ -129,7 +129,7 @@ void SugarCrmResource::retrieveCollections()
   m_collections[l.remoteId()] = l;
 
   Collection t;
-  t.setParent(root);
+  t.setParentCollection(root);
   t.setRemoteId("Tasks@" + url.url());
   attr = new ModuleAttribute(ModuleAttribute::Tasks);
   t.addAttribute(attr);
