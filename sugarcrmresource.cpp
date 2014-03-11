@@ -441,7 +441,7 @@ void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Coll
   if (!SugarCrmResource::Modules.contains(mod))
     return;
 
-  QString id = "";
+  QString *id = new QString();
 
   soap = new SugarSoap(Settings::self()->url().url());
   if (soap->editEntry(
@@ -451,8 +451,8 @@ void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Coll
   ))
   {
     Item newItem(item);
-    newItem.setRemoteId(id);
     newItem.clearPayload(); // FIXME
+    newItem.setRemoteId(*id);
     changeCommitted(newItem);
   }
 }
@@ -491,7 +491,7 @@ void SugarCrmResource::itemRemoved( const Akonadi::Item &item )
   if (soap->editEntry(
     mod,
     soapItem,
-    item.remoteId()
+    new QString(item.remoteId())
   ))
     changeCommitted(Item(item));
 }

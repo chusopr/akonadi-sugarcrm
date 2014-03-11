@@ -270,7 +270,7 @@ QHash<QString, QString>* SugarSoap::getEntry(const QString &module, const QStrin
   return entry;
 }
 
-bool SugarSoap::editEntry(const QString& module, QHash<QString, QString> entry, QString id)
+bool SugarSoap::editEntry(const QString& module, QHash< QString, QString > entry, QString* id)
 {
   // Check that the request module is one of the ones we allow
   if (!SugarCrmResource::Modules.contains(module))
@@ -302,11 +302,11 @@ bool SugarSoap::editEntry(const QString& module, QHash<QString, QString> entry, 
    */
   QtSoapArray *name_value_list = new QtSoapArray(QtSoapQName("name_value_list"), QtSoapType::Struct, (entry.count()+1));
   QtSoapStruct *soap_field;
-  if (!id.isEmpty())
+  if (!id->isEmpty())
   {
     soap_field = new QtSoapStruct(QtSoapQName("item"));
     soap_field->insert(new QtSoapSimpleType(QtSoapQName("name"), "id"));
-    soap_field->insert(new QtSoapSimpleType(QtSoapQName("value"), id));
+    soap_field->insert(new QtSoapSimpleType(QtSoapQName("value"), (*id)));
     name_value_list->append(soap_field);
   }
   for (QHash<QString, QString>::iterator field = entry.begin(); field != entry.end(); field++)
@@ -339,8 +339,8 @@ bool SugarSoap::editEntry(const QString& module, QHash<QString, QString> entry, 
   disconnect(&soap_http, SIGNAL(responseReady()), this, SLOT(getResponse()));
   disconnect(&soap_http, SIGNAL(responseReady()), &loop, SLOT(quit()));
 
-  if ((return_value) && (id.isEmpty()))
-    id = soap_http.getResponse().method()["return"]["id"].value().toString();
+  if ((return_value) && (id->isEmpty()))
+    (*id) = soap_http.getResponse().method()["return"]["id"].value().toString();
   return return_value;
 }
 
