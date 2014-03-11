@@ -451,7 +451,6 @@ void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Coll
   ))
   {
     Item newItem(item);
-    newItem.clearPayload(); // FIXME
     newItem.setRemoteId(*id);
     changeCommitted(newItem);
   }
