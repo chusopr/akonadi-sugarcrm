@@ -14,3 +14,7 @@ You have to ways to solve this:
    - After it fails, edit settingsadaptor.h and settingsadaptor.cpp
      and change soap() method return type from QString to KUrl.
    - Run make again.
+
+======================================================================
+
+First sync is too slow and resource consuming. There are probably memory leaks.

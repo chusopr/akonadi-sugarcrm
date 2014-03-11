@@ -152,6 +152,17 @@ QStringList *SugarSoap::getEntries(const QString &module)
 
   this->module = module;
 
+  QEventLoop loop;
+  offset = 0;
+  connect(this, SIGNAL(allEntries()), &loop, SLOT(quit()));
+  this->requestEntries();
+  loop.exec();
+  disconnect(this, SIGNAL(allEntries()), &loop, SLOT(quit()));
+  return entries;
+}
+
+void SugarSoap::requestEntries()
+{
   // Build the request
   QtSoapMessage soap_request;
   soap_request.setMethod("get_entry_list");
@@ -170,34 +181,27 @@ QStringList *SugarSoap::getEntries(const QString &module)
   QtSoapArray *select_fields = new QtSoapArray(QtSoapQName("select_fields"), QtSoapType::String, 1);
   select_fields->insert(0, new QtSoapSimpleType(QtSoapQName("id"), "id"));
 
+  // FIXME: probably only id is required
   soap_request.addMethodArgument("session", "", session_id);
   soap_request.addMethodArgument("module_name", "", module);
   soap_request.addMethodArgument("query", "", "");
   soap_request.addMethodArgument("order_by", "", "");
-  soap_request.addMethodArgument("offset", "", "");
+  soap_request.addMethodArgument("offset", "", offset);
   soap_request.addMethodArgument(select_fields);
   soap_request.addMethodArgument("max_results", "", "");
   soap_request.addMethodArgument("deleted", "", 0);
-
-  // TODO: get more than 20 entries
 
   /*!
    * Connects responseReady() event in QtSoapHttpTransport to
    * getResponse() method in this
    */
   connect(&soap_http, SIGNAL(responseReady()), this, SLOT(entriesReady()));
-  QEventLoop loop;
-  connect(&soap_http, SIGNAL(responseReady()), &loop, SLOT(quit()));
   // Finally, send the request
   soap_http.setHost(url.host(),
                     url.toString().startsWith("https://")? true : false,
                     url.toString().startsWith("https://")? url.port(443) : url.port(80));
   soap_http.setAction(url.toString());
   soap_http.submitRequest(soap_request, url.path() == ""? "/" : url.path());
-  loop.exec();
-  disconnect(&soap_http, SIGNAL(responseReady()), this, SLOT(entriesReady()));
-  disconnect(&soap_http, SIGNAL(responseReady()), &loop, SLOT(quit()));
-  return entries;
 }
 
 /*!
@@ -412,6 +416,12 @@ void SugarSoap::entriesReady()
       // Iterate over entries to get their ids
       for (int i=0; i<response["entry_list"].count(); i++)
         entries->append(response["entry_list"][i]["name_value_list"][0]["value"].toString());
+      unsigned int last_offset = offset;
+      offset = response["next_offset"].toInt();
+      if (offset > last_offset)
+        requestEntries();
+      else
+        emit allEntries();
     }
   }
 }

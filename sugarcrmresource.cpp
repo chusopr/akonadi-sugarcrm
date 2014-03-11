@@ -154,7 +154,7 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
 
   // Request items to SugarSoap
   soap = new SugarSoap(Settings::self()->url().url());
-  QStringList *soapItems = soap->getEntries(mod);;
+  QStringList *soapItems = soap->getEntries(mod);
 
   // At this step, we only need their remoteIds.
   Item::List items;
@@ -433,7 +433,6 @@ void SugarCrmResource::configure(const WId windowId)
   synchronize();
 }
 
-// FIXME: Items appear as added in Akonadi even if adding to SugarCRM failed
 void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Collection &collection )
 {
   QString mod = QString(collection.attribute<ModuleAttribute>()->serialized());
@@ -456,7 +455,6 @@ void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Coll
   }
 }
 
-// FIXME: Items appear as changed in Akonadi even if update to SugarCRM failed
 void SugarCrmResource::itemChanged( const Akonadi::Item &item, const QSet<QByteArray> &parts )
 {
   Q_UNUSED(parts);

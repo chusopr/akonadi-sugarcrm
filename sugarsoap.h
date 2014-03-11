@@ -23,6 +23,7 @@ class SugarSoap : public QObject
   Q_SIGNALS:
     void loggedIn();
     void loginFailed();
+    void allEntries();
 
   private Q_SLOTS:
     void getLoginResponse();
@@ -31,6 +32,7 @@ class SugarSoap : public QObject
     void getResponse();
 
   private:
+    void requestEntries();
     QtSoapHttpTransport soap_http;
     QString session_id;
     QUrl url;
@@ -38,6 +40,7 @@ class SugarSoap : public QObject
     QStringList *entries;
     QHash<QString, QString>* entry;
     bool return_value;
+    unsigned int offset;
 };
 
 #endif
