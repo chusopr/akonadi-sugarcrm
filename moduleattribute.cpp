@@ -32,6 +32,8 @@ QByteArray ModuleAttribute::serialized() const
 {
   switch (module)
   {
+    case Cases:
+      return "Cases";
     case Contacts:
       return "Contacts";
     case Leads:
@@ -55,4 +57,9 @@ void ModuleAttribute::deserialize(const QByteArray &m)
 ModuleAttribute::ModuleTypes ModuleAttribute::getModule() const
 {
   return module;
+}
+
+ModuleAttribute *ModuleAttribute::operator= (const ModuleAttribute &m)
+{
+  return m.clone();
 }

@@ -5,6 +5,7 @@
 #include <KABC/PhoneNumber>
 #include "sugarsoap.h"
 #include "sugarconfig.h"
+#include "moduleattribute.h"
 
 struct module;
 
@@ -16,8 +17,7 @@ class SugarCrmResource : public Akonadi::ResourceBase,
   public:
     SugarCrmResource(const QString &id);
     ~SugarCrmResource();
-    // TODO replace QString with ModuleAttribute::ModuleTypes
-    static QHash<QString,module> Modules;
+    static QHash<Akonadi::ModuleAttribute::ModuleTypes,module> Modules;
 
   public Q_SLOTS:
     virtual void configure(const WId windowId);

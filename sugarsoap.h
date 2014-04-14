@@ -9,6 +9,7 @@
 #ifndef SUGARSOAP_H
 #define SUGARSOAP_H
 #include "qtsoap/qtsoap.h"
+#include "moduleattribute.h"
 
 class SugarSoap : public QObject
 {
@@ -16,9 +17,9 @@ class SugarSoap : public QObject
   public:
     SugarSoap(QString strurl, QString sid = "");
     QString login(const QString &user, const QString &pass);
-    QStringList *getEntries(const QString &module);
-    QHash<QString, QString>* getEntry(const QString &module, const QString &id);
-    bool editEntry(const QString &module, QHash<QString, QString> entry, QString *id);
+    QStringList *getEntries(Akonadi::ModuleAttribute *module);
+    QHash<QString, QString>* getEntry(Akonadi::ModuleAttribute *module, const QString &id);
+    bool editEntry(Akonadi::ModuleAttribute *module, QHash<QString, QString> entry, QString *id);
 
   Q_SIGNALS:
     void loggedIn();
@@ -36,7 +37,7 @@ class SugarSoap : public QObject
     QtSoapHttpTransport soap_http;
     QString session_id;
     QUrl url;
-    QString module;
+    Akonadi::ModuleAttribute *module;
     QStringList *entries;
     QHash<QString, QString>* entry;
     bool return_value;

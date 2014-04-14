@@ -130,11 +130,11 @@ void SugarSoap::getLoginResponse()
  * Requests an entry list
  * \param[in] module Module you want to get data from
  */
-QStringList *SugarSoap::getEntries(const QString &module)
+QStringList *SugarSoap::getEntries(Akonadi::ModuleAttribute *module)
 {
   entries = new QStringList;
   // Check that the request module is one of the ones we allow
-  if (!SugarCrmResource::Modules.contains(module))
+  if (!SugarCrmResource::Modules.contains(module->getModule()))
   {
     qDebug("Invalid module requested");
     // TODO emit something?
@@ -183,7 +183,7 @@ void SugarSoap::requestEntries()
 
   // FIXME: probably only id is required
   soap_request.addMethodArgument("session", "", session_id);
-  soap_request.addMethodArgument("module_name", "", module);
+  soap_request.addMethodArgument("module_name", "", QString(module->serialized()));
   soap_request.addMethodArgument("query", "", "");
   soap_request.addMethodArgument("order_by", "", "");
   soap_request.addMethodArgument("offset", "", offset);
@@ -208,11 +208,11 @@ void SugarSoap::requestEntries()
  * Requests an entry list
  * \param[in] module Module you want to get data from
  */
-QHash<QString, QString>* SugarSoap::getEntry(const QString &module, const QString &id)
+QHash<QString, QString>* SugarSoap::getEntry(Akonadi::ModuleAttribute *module, const QString &id)
 {
   entry = new QHash<QString, QString>;
   // Check that the request module is one of the ones we allow
-  if (!SugarCrmResource::Modules.contains(module))
+  if (!SugarCrmResource::Modules.contains(module->getModule()))
   {
     qDebug("Invalid module requested");
     // TODO emit something?
@@ -245,13 +245,13 @@ QHash<QString, QString>* SugarSoap::getEntry(const QString &module, const QStrin
    *   max_results:   maximum number of results in every response
    *   deleted:       do we want to get deleted results too?
    */
-  QStringList fields = SugarCrmResource::Modules[module].fields;
+  QStringList fields = SugarCrmResource::Modules[module->getModule()].fields;
   QtSoapArray *select_fields = new QtSoapArray(QtSoapQName("select_fields"), QtSoapType::String, fields.count());
   foreach (QString field, fields)
     select_fields->append(new QtSoapSimpleType(QtSoapQName(field), field));
 
   soap_request.addMethodArgument("session", "", session_id);
-  soap_request.addMethodArgument("module_name", "", module);
+  soap_request.addMethodArgument("module_name", "", QString(module->serialized()));
   soap_request.addMethodArgument("id", "", id);
   soap_request.addMethodArgument(select_fields);
 
@@ -274,10 +274,10 @@ QHash<QString, QString>* SugarSoap::getEntry(const QString &module, const QStrin
   return entry;
 }
 
-bool SugarSoap::editEntry(const QString& module, QHash< QString, QString > entry, QString* id)
+bool SugarSoap::editEntry(Akonadi::ModuleAttribute* module, QHash< QString, QString > entry, QString* id)
 {
   // Check that the request module is one of the ones we allow
-  if (!SugarCrmResource::Modules.contains(module))
+  if (!SugarCrmResource::Modules.contains(module->getModule()))
   {
     qDebug("Invalid module requested");
     // TODO emit something?
@@ -322,7 +322,7 @@ bool SugarSoap::editEntry(const QString& module, QHash< QString, QString > entry
   }
 
   soap_request.addMethodArgument("session", "", session_id);
-  soap_request.addMethodArgument("module_name", "", module);
+  soap_request.addMethodArgument("module_name", "", QString(module->serialized()));
 
   soap_request.addMethodArgument(name_value_list);
 
@@ -456,7 +456,7 @@ void SugarSoap::entryReady()
     else
     {
       // Print returned data
-      QStringList fields = SugarCrmResource::Modules[module].fields;
+      QStringList fields = SugarCrmResource::Modules[module->getModule()].fields;
       const QtSoapStruct *soapEntry = (QtSoapStruct*)&(response["entry_list"][0]);
       // Show this entry's data
       for (int j=0; j<(*soapEntry)["name_value_list"].count(); j++)

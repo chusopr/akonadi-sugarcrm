@@ -20,6 +20,7 @@ namespace Akonadi
     public:
       enum ModuleTypes
       {
+        Cases,
         Contacts,
         Leads,
         Tasks
@@ -31,6 +32,7 @@ namespace Akonadi
       QByteArray serialized() const;
       void deserialize(const QByteArray &m);
       ModuleTypes getModule() const;
+      ModuleAttribute *operator= (const ModuleAttribute &m);
 
     private:
       ModuleTypes module;
