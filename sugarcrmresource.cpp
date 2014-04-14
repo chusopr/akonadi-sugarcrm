@@ -62,14 +62,14 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   phones["phone_fax"]    = KABC::PhoneNumber::Fax;
 
   modinfo = new module;
-  modinfo->fields << "id" << "name" << "description" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
+  modinfo->fields << "id" << "name" << "description" << "date_entered" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
   modinfo->mimes << KCalCore::Todo::todoMimeType();
   modinfo->payload_function = &SugarCrmResource::taskPayload;
   modinfo->soap_function = &SugarCrmResource::taskSoap;
   SugarCrmResource::Modules[Akonadi::ModuleAttribute::Tasks] = *modinfo;
 
   modinfo = new module;
-  modinfo->fields << "id" << "name" << "description" << "case_number" << "date_due" << "date_start_flag" << "date_start";
+  modinfo->fields << "id" << "name" << "description" << "case_number" << "date_entered" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
   modinfo->mimes << KCalCore::Todo::todoMimeType();
   // TODO: payload
   // TODO: where status is active
@@ -342,7 +342,8 @@ Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, cons
   item.addAttribute(attr); // FIXME */
   event->setSummary(soapItem["name"]);
   event->setDescription(soapItem["description"]);
-  // FIXME: creation date
+  event->setCreated(KDateTime::fromString(soapItem["date_entered"], KDateTime::ISODate));
+  event->setDateTime(KDateTime::fromString(soapItem["date_entered"], KDateTime::ISODate));
   if (!soapItem["date_start"].isEmpty())
     event->setDtStart(KDateTime::fromString(soapItem["date_start"], KDateTime::ISODate));
   if (!soapItem["date_due"].isEmpty())
@@ -368,6 +369,7 @@ QHash<QString, QString> SugarCrmResource::taskSoap(const Akonadi::Item &item)
 
   soapItem["name"] = payload->summary();
   soapItem["description"] = payload->description();
+  soapItem["date_entered"] = payload->created().toString(KDateTime::ISODate);
   if (payload->hasStartDate())
   {
     soapItem["date_start"] = payload->dtStart().toString(KDateTime::ISODate);
