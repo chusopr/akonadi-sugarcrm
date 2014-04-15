@@ -46,7 +46,9 @@ QByteArray ModuleAttribute::serialized() const
 
 void ModuleAttribute::deserialize(const QByteArray &m)
 {
-  if (m == "Contacts")
+  if (m == "Cases")
+    module = Cases;
+  else if (m == "Contacts")
     module = Contacts;
   else if (m == "Leads")
     module = Leads;

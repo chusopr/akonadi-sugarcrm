@@ -71,9 +71,9 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   modinfo = new module;
   modinfo->fields << "id" << "name" << "description" << "case_number" << "date_entered" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
   modinfo->mimes << KCalCore::Todo::todoMimeType();
-  // TODO: payload
   // TODO: where status is active
-  // FIXME: Akonadi::ModuleAttribute::Cases?
+  modinfo->payload_function = &SugarCrmResource::taskPayload;
+  modinfo->soap_function = &SugarCrmResource::taskSoap;
   SugarCrmResource::Modules[Akonadi::ModuleAttribute::Cases] = *modinfo;
 
   new SettingsAdaptor( Settings::self() );
@@ -104,8 +104,8 @@ void SugarCrmResource::retrieveCollections()
   root.setParentCollection(Collection::root());
   // TODO root.setRights()
 
-  QMap<QString, Akonadi::Collection> m_collections;
-  m_collections["RootCollection"] = root;
+  QMap<QString, Akonadi::Collection> collections;
+  collections["RootCollection"] = root;
 
   // Add a collection for each module queried
   Collection c;
@@ -115,7 +115,7 @@ void SugarCrmResource::retrieveCollections()
   c.setContentMimeTypes(QStringList("text/directory"));
   ModuleAttribute *attr = new ModuleAttribute(ModuleAttribute::Contacts);
   c.addAttribute(attr);
-  m_collections[c.remoteId()] = c;
+  collections[c.remoteId()] = c;
 
   // TODO cases
 
@@ -126,7 +126,7 @@ void SugarCrmResource::retrieveCollections()
   l.addAttribute(attr);
   l.setName(i18n("Leads from SugarCRM resource at %1").arg(url.url()));
   l.setContentMimeTypes(QStringList("text/directory"));
-  m_collections[l.remoteId()] = l;
+  collections[l.remoteId()] = l;
 
   Collection t;
   t.setParentCollection(root);
@@ -135,9 +135,18 @@ void SugarCrmResource::retrieveCollections()
   t.addAttribute(attr);
   t.setName(i18n("Tasks from SugarCRM resource at %1").arg(url.url()));
   t.setContentMimeTypes(QStringList(KCalCore::Todo::todoMimeType()));
-  m_collections[t.remoteId()] = t;
+  collections[t.remoteId()] = t;
 
-  collectionsRetrieved(m_collections.values());
+  Collection c2;
+  c2.setParentCollection(root);
+  c2.setRemoteId("Cases@" + url.url());
+  attr = new ModuleAttribute(ModuleAttribute::Cases);
+  c2.addAttribute(attr);
+  c2.setName(i18n("Cases from SugarCRM resource at %1").arg(url.url()));
+  c2.setContentMimeTypes(QStringList(KCalCore::Todo::todoMimeType()));
+  collections[c2.remoteId()] = c2;
+
+  collectionsRetrieved(collections.values());
 }
 
 /*!
@@ -354,6 +363,8 @@ Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, cons
     event->setDtDue(KDateTime::fromString(soapItem["date_due"], KDateTime::ISODate));
     event->setDateTime(KDateTime::fromString(soapItem["date_due"], KDateTime::ISODate), KCalCore::IncidenceBase::RoleDisplayEnd);
   }
+  if (!soapItem["case_number"].isEmpty())
+    event->setCustomProperty("SugarCRM", "X-CaseNumber", soapItem["case_number"]);
   Item newItem(item);
   newItem.setPayload<KCalCore::Todo::Ptr>(event);
   return newItem;
@@ -385,6 +396,8 @@ QHash<QString, QString> SugarCrmResource::taskSoap(const Akonadi::Item &item)
     soapItem["date_due"] = payload->dtDue().toString(KDateTime::ISODate);
     soapItem["date_due_flag"] = "1";
   }
+  if (!payload->customProperty("SugarCRM", "X-CaseNumber").isEmpty())
+    soapItem["case_number"] = payload->customProperty("SugarCRM", "X-CaseNumber");
   return soapItem;
 }
 
@@ -456,8 +469,18 @@ void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Coll
     id
   ))
   {
+    // FIXME: remoteId != uid. Is it right?
     Item newItem(item);
     newItem.setRemoteId(*id);
+    if (mod->getModule() == ModuleAttribute::Cases)
+    {
+      // Refetch payload to get case name
+      QHash<QString, QString> *soapItem = soap->getEntry(mod, *id);
+      Item tmpItem = taskPayload(*soapItem, newItem);
+      KCalCore::Todo::Ptr payload = tmpItem.payload<KCalCore::Todo::Ptr>();
+      // FIXME this doesn't work
+      newItem.payload<KCalCore::Todo::Ptr>().swap(payload);
+    }
     changeCommitted(newItem);
   }
 }
