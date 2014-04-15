@@ -343,12 +343,17 @@ Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, cons
   event->setSummary(soapItem["name"]);
   event->setDescription(soapItem["description"]);
   event->setCreated(KDateTime::fromString(soapItem["date_entered"], KDateTime::ISODate));
-  event->setDateTime(KDateTime::fromString(soapItem["date_entered"], KDateTime::ISODate));
   if (!soapItem["date_start"].isEmpty())
+  {
     event->setDtStart(KDateTime::fromString(soapItem["date_start"], KDateTime::ISODate));
+    event->setDateTime(KDateTime::fromString(soapItem["date_start"], KDateTime::ISODate), KCalCore::IncidenceBase::RoleDisplayStart);
+  }
   if (!soapItem["date_due"].isEmpty())
+  {
     // FIXME: It seems that it only gets date but not time
     event->setDtDue(KDateTime::fromString(soapItem["date_due"], KDateTime::ISODate));
+    event->setDateTime(KDateTime::fromString(soapItem["date_due"], KDateTime::ISODate), KCalCore::IncidenceBase::RoleDisplayEnd);
+  }
   Item newItem(item);
   newItem.setPayload<KCalCore::Todo::Ptr>(event);
   return newItem;
