@@ -62,14 +62,14 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   phones["phone_fax"]    = KABC::PhoneNumber::Fax;
 
   modinfo = new module;
-  modinfo->fields << "id" << "name" << "description" << "date_entered" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
+  modinfo->fields << "id" << "name" << "description" << "status" << "date_entered" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
   modinfo->mimes << KCalCore::Todo::todoMimeType();
   modinfo->payload_function = &SugarCrmResource::taskPayload;
   modinfo->soap_function = &SugarCrmResource::taskSoap;
   SugarCrmResource::Modules[Akonadi::ModuleAttribute::Tasks] = *modinfo;
 
   modinfo = new module;
-  modinfo->fields << "id" << "name" << "description" << "case_number" << "date_entered" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
+  modinfo->fields << "id" << "name" << "description" << "case_number" << "status" << "date_entered" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
   modinfo->mimes << KCalCore::Todo::todoMimeType();
   // TODO: where status is active
   modinfo->payload_function = &SugarCrmResource::taskPayload;
@@ -347,8 +347,6 @@ Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, cons
 {
   KCalCore::Todo::Ptr event(new KCalCore::Todo);
   event->setUid(soapItem["id"]);
-  /* ModuleAttribute *attr = new ModuleAttribute(ModuleAttribute::Tasks);
-  item.addAttribute(attr); // FIXME */
   event->setSummary(soapItem["name"]);
   event->setDescription(soapItem["description"]);
   event->setCreated(KDateTime::fromString(soapItem["date_entered"], KDateTime::ISODate));
@@ -365,6 +363,21 @@ Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, cons
   }
   if (!soapItem["case_number"].isEmpty())
     event->setCustomProperty("SugarCRM", "X-CaseNumber", soapItem["case_number"]);
+  // TODO percentcomplete
+  if (!soapItem["status"].isEmpty())
+  {
+    if (soapItem["status"] == "Assigned")
+      event->setStatus(KCalCore::Incidence::StatusConfirmed);
+    else if (soapItem["status"] == "Pending Input")
+      event->setStatus(KCalCore::Incidence::StatusInProcess);
+    else if (soapItem["status"] ==  "Closed")
+      event->setStatus(KCalCore::Incidence::StatusCompleted);
+    else if (soapItem["status"] == "Rejected")
+      event->setStatus(KCalCore::Incidence::StatusCanceled);
+    else
+      event->setCustomStatus(soapItem["status"]);
+    event->setCustomProperty("SugarCRM", "X-Status", soapItem["status"]);
+  }
   Item newItem(item);
   newItem.setPayload<KCalCore::Todo::Ptr>(event);
   return newItem;
@@ -398,6 +411,31 @@ QHash<QString, QString> SugarCrmResource::taskSoap(const Akonadi::Item &item)
   }
   if (!payload->customProperty("SugarCRM", "X-CaseNumber").isEmpty())
     soapItem["case_number"] = payload->customProperty("SugarCRM", "X-CaseNumber");
+
+  if (!payload->customProperty("SugarCRM", "X-Status").isEmpty())
+    soapItem["status"] = payload->customProperty("SugarCRM", "X-Status");
+  else
+    switch (payload->status())
+    {
+      case KCalCore::Incidence::StatusConfirmed:
+        soapItem["status"] = "Assigned";
+        break;
+      case KCalCore::Incidence::StatusInProcess:
+        soapItem["status"] = "Pending Input";
+        break;
+      case KCalCore::Incidence::StatusCompleted:
+        soapItem["status"] = "Closed";
+        break;
+      case KCalCore::Incidence::StatusCanceled:
+        soapItem["status"] = "Rejected";
+        break;
+      case KCalCore::Incidence::StatusX:
+        soapItem["status"] = payload->customStatus();
+        break;
+      default:
+        // Just to avoid warnings
+        break;
+    }
   return soapItem;
 }
 

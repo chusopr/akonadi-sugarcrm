@@ -184,6 +184,8 @@ void SugarSoap::requestEntries()
   // FIXME: probably only id is required
   soap_request.addMethodArgument("session", "", session_id);
   soap_request.addMethodArgument("module_name", "", QString(module->serialized()));
+  // TODO make this configurable
+  //soap_request.addMethodArgument("query", "", "cases.Status NOT IN ('Closed', 'Rejected', 'Duplicate')");
   soap_request.addMethodArgument("query", "", "");
   soap_request.addMethodArgument("order_by", "", "");
   soap_request.addMethodArgument("offset", "", offset);
