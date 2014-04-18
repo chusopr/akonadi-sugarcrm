@@ -62,14 +62,14 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   phones["phone_fax"]    = KABC::PhoneNumber::Fax;
 
   modinfo = new module;
-  modinfo->fields << "id" << "name" << "description" << "status" << "date_entered" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
+  modinfo->fields << "id" << "name" << "description" << "status" << "priority" << "date_entered" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
   modinfo->mimes << KCalCore::Todo::todoMimeType();
   modinfo->payload_function = &SugarCrmResource::taskPayload;
   modinfo->soap_function = &SugarCrmResource::taskSoap;
   SugarCrmResource::Modules[Akonadi::ModuleAttribute::Tasks] = *modinfo;
 
   modinfo = new module;
-  modinfo->fields << "id" << "name" << "description" << "case_number" << "status" << "date_entered" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
+  modinfo->fields << "id" << "name" << "description" << "case_number" << "status" << "priority" << "date_entered" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
   modinfo->mimes << KCalCore::Todo::todoMimeType();
   // TODO: where status is active
   modinfo->payload_function = &SugarCrmResource::taskPayload;
@@ -363,6 +363,7 @@ Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, cons
   }
   if (!soapItem["case_number"].isEmpty())
     event->setCustomProperty("SugarCRM", "X-CaseNumber", soapItem["case_number"]);
+
   // TODO percentcomplete
   if (!soapItem["status"].isEmpty())
   {
@@ -378,6 +379,16 @@ Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, cons
       event->setCustomStatus(soapItem["status"]);
     event->setCustomProperty("SugarCRM", "X-Status", soapItem["status"]);
   }
+  if (!soapItem["priority"].isEmpty())
+  {
+    if (soapItem["priority"] == "High")
+      event->setPriority(1);
+    else if (soapItem["priority"] == "Medium")
+      event->setPriority(5);
+    else if (soapItem["priority"] == "Low")
+      event->setPriority(9);
+  }
+
   Item newItem(item);
   newItem.setPayload<KCalCore::Todo::Ptr>(event);
   return newItem;
@@ -436,6 +447,12 @@ QHash<QString, QString> SugarCrmResource::taskSoap(const Akonadi::Item &item)
         // Just to avoid warnings
         break;
     }
+  if ((payload->priority() >= 1) && (payload->priority() <= 3))
+    soapItem["priority"] = "High";
+  else if ((payload->priority() >=4) && (payload->priority() <=6))
+    soapItem["priority"] = "Medium";
+  else if (payload->priority() >= 7)
+    soapItem["priority"] = "Low";
   return soapItem;
 }
 
