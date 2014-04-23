@@ -18,6 +18,7 @@
 #include <KWindowSystem>
 #include <KABC/Addressee>
 #include <KCalCore/Todo>
+#include <KCalCore/Event>
 #include <Akonadi/ItemFetchScope>
 #include <Akonadi/ChangeRecorder>
 #include <KLocalizedString>
@@ -75,6 +76,14 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   modinfo->payload_function = &SugarCrmResource::taskPayload;
   modinfo->soap_function = &SugarCrmResource::taskSoap;
   SugarCrmResource::Modules[Akonadi::ModuleAttribute::Cases] = *modinfo;
+
+  modinfo = new module;
+  modinfo->fields << "id" << "name" << "status" << "quantity" << "date_start" << "related_type" << "related_id" << "date_entered";
+  modinfo->mimes << KCalCore::Event::eventMimeType();
+  // TODO: where status is active
+  modinfo->payload_function = &SugarCrmResource::bookingPayload;
+  modinfo->soap_function = &SugarCrmResource::bookingSoap;
+  SugarCrmResource::Modules[Akonadi::ModuleAttribute::Booking] = *modinfo;
 
   new SettingsAdaptor( Settings::self() );
   QDBusConnection::sessionBus().registerObject( QLatin1String( "/Settings" ),
@@ -145,6 +154,15 @@ void SugarCrmResource::retrieveCollections()
   c2.setName(i18n("Cases from SugarCRM resource at %1").arg(url.url()));
   c2.setContentMimeTypes(QStringList(KCalCore::Todo::todoMimeType()));
   collections[c2.remoteId()] = c2;
+
+  Collection b;
+  b.setParentCollection(root);
+  b.setRemoteId("Booking@" + url.url());
+  attr = new ModuleAttribute(ModuleAttribute::Booking);
+  b.addAttribute(attr);
+  b.setName(i18n("Booking from SugarCRM resource at %1").arg(url.url()));
+  b.setContentMimeTypes(QStringList(KCalCore::Event::eventMimeType()));
+  collections[b.remoteId()] = b;
 
   collectionsRetrieved(collections.values());
 }
@@ -453,6 +471,106 @@ QHash<QString, QString> SugarCrmResource::taskSoap(const Akonadi::Item &item)
     soapItem["priority"] = "Medium";
   else if (payload->priority() >= 7)
     soapItem["priority"] = "Low";
+  return soapItem;
+}
+
+/*!
+ * Receives an Akonadi::Item and a SOAP assocative array that
+ * contains a calendar event to be set as item's payload
+ * \param[in] soapItem The associative array containing a calendar event
+ * \param[in] item the item whom payload will be populated
+ * \return A new Akonadi::Item with its payload
+ */
+Item SugarCrmResource::bookingPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item)
+{
+  KCalCore::Event::Ptr event(new KCalCore::Event);
+  event->setUid(soapItem["id"]);
+  event->setSummary(soapItem["name"]);
+  event->setCreated(KDateTime::fromString(soapItem["date_entered"], KDateTime::ISODate));
+  if (!soapItem["date_start"].isEmpty())
+  {
+    event->setDtStart(KDateTime::fromString(soapItem["date_start"], KDateTime::ISODate));
+    event->setDateTime(KDateTime::fromString(soapItem["date_start"], KDateTime::ISODate), KCalCore::IncidenceBase::RoleDisplayStart);
+  }
+  if (!soapItem["quantity"].isEmpty())
+  {
+    // FIXME: It seems that it only gets date but not time
+    event->setDuration(soapItem["quantity"].toUInt()*60);
+    KDateTime test = KDateTime::fromString(soapItem["date_start"], KDateTime::ISODate).addSecs(soapItem["quantity"].toUInt()*60);
+    QString teststr = test.toString();
+    event->setDtEnd(KDateTime::fromString(soapItem["date_start"], KDateTime::ISODate).addSecs(soapItem["quantity"].toUInt()*60));
+    event->setDateTime(KDateTime::fromString(soapItem["date_start"], KDateTime::ISODate).addSecs(soapItem["quantity"].toUInt()*60), KCalCore::IncidenceBase::RoleDisplayEnd);
+    event->setDateTime(KDateTime::fromString(soapItem["date_start"], KDateTime::ISODate).addSecs(soapItem["quantity"].toUInt()*60), KCalCore::IncidenceBase::RoleEnd);
+  }
+
+  // TODO percentcomplete
+  if (!soapItem["status"].isEmpty())
+  {
+    if (soapItem["status"] == "draft")
+      event->setStatus(KCalCore::Incidence::StatusDraft);
+    else if (soapItem["status"] == "approved")
+      event->setStatus(KCalCore::Incidence::StatusConfirmed);
+    else if (soapItem["status"] ==  "rejected")
+      event->setStatus(KCalCore::Incidence::StatusCanceled);
+    else if (soapItem["status"] == "pending")
+      event->setStatus(KCalCore::Incidence::StatusNeedsAction);
+    else
+      event->setCustomStatus(soapItem["status"]);
+    event->setCustomProperty("SugarCRM", "X-Status", soapItem["status"]);
+  }
+
+  // FIXME look for correct id
+  if ((soapItem["related_type"] == "Cases") && (!soapItem["related_id"].isEmpty()))
+    event->setRelatedTo(soapItem["related_id"]);
+
+  Item newItem(item);
+  newItem.setPayload<KCalCore::Event::Ptr>(event);
+  return newItem;
+}
+
+/*!
+ * Receives an Akonadi::Item containing KABC::Addressee payload and
+ * converts this payload to a SOAP assocative array that to be stored
+ * in SugarCRM
+ * \param[in] item the item whose payload that will be converted
+ * \return A new QHash dictionary with item attributes
+ */
+QHash<QString, QString> SugarCrmResource::bookingSoap(const Akonadi::Item &item)
+{
+  const KCalCore::Event::Ptr &payload = item.payload<KCalCore::Event::Ptr>();
+
+  QHash<QString, QString> soapItem;
+
+  soapItem["name"] = payload->summary();
+  soapItem["date_entered"] = payload->created().toString(KDateTime::ISODate);
+  soapItem["date_start"] = payload->dtStart().toString(KDateTime::ISODate);
+  if (payload->hasDuration())
+    soapItem["quantity"] = QString::number(payload->duration().asSeconds()/60);
+
+  if (!payload->customProperty("SugarCRM", "X-Status").isEmpty())
+    soapItem["status"] = payload->customProperty("SugarCRM", "X-Status");
+  else
+    switch (payload->status())
+    {
+      case KCalCore::Incidence::StatusDraft:
+        soapItem["status"] = "draft";
+        break;
+      case KCalCore::Incidence::StatusConfirmed:
+        soapItem["status"] = "approved";
+        break;
+      case KCalCore::Incidence::StatusCanceled:
+        soapItem["status"] = "rejected";
+        break;
+      case KCalCore::Incidence::StatusNeedsAction:
+        soapItem["status"] = "pending";
+        break;
+      case KCalCore::Incidence::StatusX:
+        soapItem["status"] = payload->customStatus();
+        break;
+      default:
+        // Just to avoid warnings
+        break;
+    }
   return soapItem;
 }
 

@@ -35,8 +35,10 @@ class SugarCrmResource : public Akonadi::ResourceBase,
     SugarConfig configDlg;
     Akonadi::Item contactPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item);
     Akonadi::Item taskPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item);
+    Akonadi::Item bookingPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item);
     QHash<QString, QString> contactSoap(const Akonadi::Item &item);
     QHash<QString, QString> taskSoap(const Akonadi::Item &item);
+    QHash<QString, QString> bookingSoap(const Akonadi::Item &item);
 
     SugarSoap *soap;
 

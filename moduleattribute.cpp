@@ -32,6 +32,8 @@ QByteArray ModuleAttribute::serialized() const
 {
   switch (module)
   {
+    case Booking:
+      return "Booking";
     case Cases:
       return "Cases";
     case Contacts:
@@ -46,7 +48,9 @@ QByteArray ModuleAttribute::serialized() const
 
 void ModuleAttribute::deserialize(const QByteArray &m)
 {
-  if (m == "Cases")
+  if (m == "Booking")
+    module = Booking;
+  else if (m == "Cases")
     module = Cases;
   else if (m == "Contacts")
     module = Contacts;

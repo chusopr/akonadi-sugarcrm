@@ -20,6 +20,7 @@ namespace Akonadi
     public:
       enum ModuleTypes
       {
+        Booking,
         Cases,
         Contacts,
         Leads,
