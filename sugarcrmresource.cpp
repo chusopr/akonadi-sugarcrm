@@ -226,6 +226,7 @@ bool SugarCrmResource::retrieveItem( const Akonadi::Item &item, const QSet<QByte
 Item SugarCrmResource::contactPayload(const QHash<QString, QString> &soapItem)
 {
   KABC::Addressee addressee;
+  addressee.setUid(soapItem["id"]);
   addressee.setPrefix(soapItem["salutation"]);
   addressee.setGivenName(soapItem["first_name"]);
   addressee.setFamilyName(soapItem["last_name"]);
