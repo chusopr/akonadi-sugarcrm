@@ -187,15 +187,14 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
   foreach (QString itemId, (*soapItems))
   {
     // Does it make sense to create this item and pass it to payload function?
-    Item item(SugarCrmResource::Modules[mod->getModule()].mimes[0]);
-    item.setRemoteId(itemId);
 
     // TODO: move to retrieveItem()
     soap = new SugarSoap(Settings::self()->url().url());
     // TODO check returned value
     // Call function pointer to the function that returns the appropi
-    QHash<QString, QString> *soapItem = soap->getEntry(mod, item.remoteId());
-    item = (this->*SugarCrmResource::Modules[mod->getModule()].payload_function)(*soapItem, item);
+    QHash<QString, QString> *soapItem = soap->getEntry(mod, itemId);
+    Item item = (this->*SugarCrmResource::Modules[mod->getModule()].payload_function)(*soapItem);
+    item.setRemoteId(itemId);
     item.setParentCollection(collection);
     // end of code to move to retrieveItem()
 
@@ -224,7 +223,7 @@ bool SugarCrmResource::retrieveItem( const Akonadi::Item &item, const QSet<QByte
  * \param[in] item the item whom payload will be populated
  * \return A new Akonadi::Item with its payload
  */
-Item SugarCrmResource::contactPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item)
+Item SugarCrmResource::contactPayload(const QHash<QString, QString> &soapItem)
 {
   KABC::Addressee addressee;
   addressee.setPrefix(soapItem["salutation"]);
@@ -292,9 +291,9 @@ Item SugarCrmResource::contactPayload(const QHash<QString, QString> &soapItem, c
     emails << soapItem["email2"];
   addressee.setEmails(emails);
 
-  Item newItem( item );
-  newItem.setPayload<KABC::Addressee>( addressee );
-  return newItem;
+  Item item(KABC::Addressee::mimeType());
+  item.setPayload<KABC::Addressee>( addressee );
+  return item;
 }
 
 /*!
@@ -361,7 +360,7 @@ QHash<QString, QString> SugarCrmResource::contactSoap(const Akonadi::Item &item)
  * \param[in] item the item whom payload will be populated
  * \return A new Akonadi::Item with its payload
  */
-Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item)
+Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem)
 {
   KCalCore::Todo::Ptr event(new KCalCore::Todo);
   event->setUid(soapItem["id"]);
@@ -407,9 +406,9 @@ Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, cons
       event->setPriority(9);
   }
 
-  Item newItem(item);
-  newItem.setPayload<KCalCore::Todo::Ptr>(event);
-  return newItem;
+  Item item(KCalCore::Todo::todoMimeType());
+  item.setPayload<KCalCore::Todo::Ptr>(event);
+  return item;
 }
 
 /*!
@@ -481,7 +480,7 @@ QHash<QString, QString> SugarCrmResource::taskSoap(const Akonadi::Item &item)
  * \param[in] item the item whom payload will be populated
  * \return A new Akonadi::Item with its payload
  */
-Item SugarCrmResource::bookingPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item)
+Item SugarCrmResource::bookingPayload(const QHash<QString, QString> &soapItem)
 {
   KCalCore::Event::Ptr event(new KCalCore::Event);
   event->setUid(soapItem["id"]);
@@ -530,9 +529,9 @@ Item SugarCrmResource::bookingPayload(const QHash<QString, QString> &soapItem, c
     }
   }
 
-  Item newItem(item);
-  newItem.setPayload<KCalCore::Event::Ptr>(event);
-  return newItem;
+  Item item(KCalCore::Event::eventMimeType());
+  item.setPayload<KCalCore::Event::Ptr>(event);
+  return item;
 }
 
 /*!
@@ -656,7 +655,7 @@ void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Coll
     {
       // Refetch payload to get case name
       QHash<QString, QString> *soapItem = soap->getEntry(mod, *id);
-      Item tmpItem = taskPayload(*soapItem, newItem);
+      Item tmpItem = taskPayload(*soapItem);
       KCalCore::Todo::Ptr payload = tmpItem.payload<KCalCore::Todo::Ptr>();
       // FIXME this doesn't work
       newItem.payload<KCalCore::Todo::Ptr>().swap(payload);
