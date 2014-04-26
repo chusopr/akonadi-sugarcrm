@@ -57,6 +57,7 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   modinfo->payload_function = &SugarCrmResource::contactPayload;
   modinfo->soap_function = &SugarCrmResource::contactSoap;
   SugarCrmResource::Modules[Akonadi::ModuleAttribute::Contacts] = SugarCrmResource::Modules[Akonadi::ModuleAttribute::Leads] = *modinfo;
+  // TODO Do the same with task statuses
   phones["phone_home"]   = KABC::PhoneNumber::Home;
   phones["phone_mobile"] = KABC::PhoneNumber::Cell;
   phones["phone_work"]   = KABC::PhoneNumber::Work;
@@ -126,8 +127,6 @@ void SugarCrmResource::retrieveCollections()
   c.addAttribute(attr);
   collections[c.remoteId()] = c;
 
-  // TODO cases
-
   Collection l;
   l.setParentCollection(root);
   l.setRemoteId("Leads@" + url.url());
@@ -187,6 +186,7 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
   Item::List items;
   foreach (QString itemId, (*soapItems))
   {
+    // Does it make sense to create this item and pass it to payload function?
     Item item(SugarCrmResource::Modules[mod->getModule()].mimes[0]);
     item.setRemoteId(itemId);
 
@@ -519,9 +519,16 @@ Item SugarCrmResource::bookingPayload(const QHash<QString, QString> &soapItem, c
     event->setCustomProperty("SugarCRM", "X-Status", soapItem["status"]);
   }
 
-  // FIXME look for correct id
-  if ((soapItem["related_type"] == "Cases") && (!soapItem["related_id"].isEmpty()))
-    event->setRelatedTo(soapItem["related_id"]);
+  if (!soapItem["related_type"].isEmpty())
+  {
+    event->setCustomProperty("SugarCRM", "X-RelatedType", soapItem["related_type"]);
+    if (!soapItem["related_id"].isEmpty())
+    {
+      event->setCustomProperty("SugarCRM", "X-RelatedId", soapItem["related_id"]);
+      if (soapItem["related_type"] == "Cases")
+        event->setRelatedTo(soapItem["related_id"]);
+    }
+  }
 
   Item newItem(item);
   newItem.setPayload<KCalCore::Event::Ptr>(event);
