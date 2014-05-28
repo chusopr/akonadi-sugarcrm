@@ -23,6 +23,7 @@
 #include <Akonadi/ChangeRecorder>
 #include <KLocalizedString>
 #include <Akonadi/AttributeFactory>
+#include <QMessageBox>
 
 using namespace Akonadi;
 
@@ -595,24 +596,23 @@ void SugarCrmResource::aboutToQuit()
  */
 void SugarCrmResource::configure(const WId windowId)
 {
-  Q_UNUSED( windowId );
-
   KWindowSystem::setMainWindow(&configDlg, windowId);
   configDlg.setUrl(Settings::self()->url().prettyUrl());
   configDlg.setUsername(Settings::self()->username());
   configDlg.setPassword(Settings::self()->password());
 
-  // Check if user clicked OK or Cancel
-  if (configDlg.exec() == QDialog::Rejected)
+  do
   {
-    emit configurationDialogRejected();
-    return;
-  }
+    if (configDlg.exec() == QDialog::Rejected)
+      break;
+    // Test if supplied data is correct
+    soap = new SugarSoap(configDlg.url());
+    // TODO timeout
+    Settings::self()->setSessionId(soap->login(configDlg.username(), configDlg.password()));
+    if (Settings::self()->sessionId().isEmpty())
+      QMessageBox::critical(&configDlg, "Invalid login", "Cannot login with provided data");
+  } while (Settings::self()->sessionId().isEmpty());
 
-  // Test if supplied data is correct
-  soap = new SugarSoap(configDlg.url());
-  // TODO timeout
-  Settings::self()->setSessionId(soap->login(configDlg.username(), configDlg.password()));
   if (Settings::self()->sessionId().isEmpty())
   {
     emit configurationDialogRejected();
