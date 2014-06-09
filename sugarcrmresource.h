@@ -5,7 +5,6 @@
 #include <KABC/PhoneNumber>
 #include "sugarsoap.h"
 #include "sugarconfig.h"
-#include "moduleattribute.h"
 
 struct module;
 
@@ -17,7 +16,7 @@ class SugarCrmResource : public Akonadi::ResourceBase,
   public:
     SugarCrmResource(const QString &id);
     ~SugarCrmResource();
-    static QHash<Akonadi::ModuleAttribute::ModuleTypes,module> Modules;
+    static QHash<QString, module> Modules;
 
   public Q_SLOTS:
     virtual void configure(const WId windowId);
@@ -33,9 +32,9 @@ class SugarCrmResource : public Akonadi::ResourceBase,
     virtual void itemChanged(const Akonadi::Item &item, const QSet<QByteArray> &parts);
     virtual void itemRemoved(const Akonadi::Item &item);
     SugarConfig configDlg;
-    Akonadi::Item contactPayload(const QHash<QString, QString> &soapItem);
-    Akonadi::Item taskPayload(const QHash<QString, QString> &soapItem);
-    Akonadi::Item bookingPayload(const QHash<QString, QString> &soapItem);
+    Akonadi::Item contactPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item);
+    Akonadi::Item taskPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item);
+    Akonadi::Item bookingPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item);
     QHash<QString, QString> contactSoap(const Akonadi::Item &item);
     QHash<QString, QString> taskSoap(const Akonadi::Item &item);
     QHash<QString, QString> bookingSoap(const Akonadi::Item &item);
@@ -50,7 +49,7 @@ struct module
 {
   QStringList fields;
   QStringList mimes;
-  Akonadi::Item (SugarCrmResource::*payload_function)(const QHash<QString, QString> &);
+  Akonadi::Item (SugarCrmResource::*payload_function)(const QHash<QString, QString> &, const Akonadi::Item &);
   QHash<QString, QString> (SugarCrmResource::*soap_function)(const Akonadi::Item &);
 };
 
