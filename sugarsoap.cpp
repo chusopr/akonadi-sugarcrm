@@ -130,9 +130,9 @@ void SugarSoap::getLoginResponse()
  * Requests an entry list
  * \param[in] module Module you want to get data from
  */
-QStringList *SugarSoap::getEntries(QString module)
+QHash<QString, QString>* SugarSoap::getEntries(QString module)
 {
-  entries = new QStringList;
+  entries = new QHash<QString, QString>;
   // Check that the request module is one of the ones we allow
   if (!SugarCrmResource::Modules.contains(module))
   {
@@ -180,6 +180,7 @@ void SugarSoap::requestEntries()
    */
   QtSoapArray *select_fields = new QtSoapArray(QtSoapQName("select_fields"), QtSoapType::String, 1);
   select_fields->insert(0, new QtSoapSimpleType(QtSoapQName("id"), "id"));
+  select_fields->insert(1, new QtSoapSimpleType(QtSoapQName("date_modified"), "date_modified"));
 
   // FIXME: probably only id is required
   soap_request.addMethodArgument("session", "", session_id);
@@ -187,7 +188,7 @@ void SugarSoap::requestEntries()
   // TODO make this configurable
   //soap_request.addMethodArgument("query", "", "cases.Status NOT IN ('Closed', 'Rejected', 'Duplicate')");
   soap_request.addMethodArgument("query", "", "");
-  soap_request.addMethodArgument("order_by", "", "");
+  soap_request.addMethodArgument("order_by", "", "date_modified ASC");
   soap_request.addMethodArgument("offset", "", offset);
   soap_request.addMethodArgument(select_fields);
   soap_request.addMethodArgument("max_results", "", "");
@@ -417,7 +418,7 @@ void SugarSoap::entriesReady()
     {
       // Iterate over entries to get their ids
       for (int i=0; i<response["entry_list"].count(); i++)
-        entries->append(response["entry_list"][i]["name_value_list"][0]["value"].toString());
+        (*entries)[response["entry_list"][i]["name_value_list"][0]["value"].toString()] = response["entry_list"][i]["name_value_list"][1]["value"].toString();
       unsigned int last_offset = offset;
       offset = response["next_offset"].toInt();
       if (offset > last_offset)

@@ -20,10 +20,14 @@
 #include <KCalCore/Todo>
 #include <KCalCore/Event>
 #include <Akonadi/ItemFetchScope>
+#include <Akonadi/CollectionFetchJob>
+#include <Akonadi/CollectionFetchScope>
+#include <Akonadi/CollectionModifyJob>
 #include <Akonadi/ChangeRecorder>
 #include <KLocalizedString>
 #include <Akonadi/AttributeFactory>
 #include <QMessageBox>
+#include "datetimeattribute.h"
 
 using namespace Akonadi;
 
@@ -92,10 +96,34 @@ SugarCrmResource::SugarCrmResource( const QString &id )
                             Settings::self(), QDBusConnection::ExportAdaptors );
 
   changeRecorder()->itemFetchScope().fetchFullPayload();
+  AttributeFactory::registerAttribute<DateTimeAttribute>();
+
+  CollectionFetchJob *job = new Akonadi::CollectionFetchJob(Akonadi::Collection::root(), Akonadi::CollectionFetchJob::Recursive, this);
+  job->fetchScope().setResource(identifier());
+
+  connect(job, SIGNAL(finished(KJob*)), this, SLOT(resourceCollectionsRetrieved(KJob*)));
 }
 
 SugarCrmResource::~SugarCrmResource()
 {
+}
+
+void SugarCrmResource::resourceCollectionsRetrieved(KJob *job)
+{
+  CollectionFetchJob *fetchJob = qobject_cast<CollectionFetchJob*>(job);
+  if (fetchJob->error() != 0)
+  {
+    qDebug("%s", job->errorString().toLatin1().constData());
+    return;
+  }
+  foreach (Collection c, fetchJob->collections())
+  {
+    resource_collection* rc = new resource_collection;
+    rc->id = c.id();
+    if (c.hasAttribute<DateTimeAttribute>())
+      rc->last_sync = c.attribute<DateTimeAttribute>()->value();
+    resource_collections[c.remoteId()] = *rc;
+  }
 }
 
 /*!
@@ -174,19 +202,44 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
 
   // Request items to SugarSoap
   soap = new SugarSoap(Settings::self()->url().url());
-  QStringList *soapItems = soap->getEntries(mod);
+  QHash<QString, QString> *soapItems = soap->getEntries(mod);
 
   // At this step, we only need their remoteIds.
   Item::List items;
-  foreach (QString itemId, (*soapItems))
+  QHashIterator<QString, QString> i(*soapItems);
+  QString last_sync;
+  while (i.hasNext())
   {
+    i.next();
     Item item(Modules[mod].mimes[0]);
-    item.setRemoteId(itemId + "@" + mod);
+    item.setRemoteId(i.key() + "@" + mod);
     item.setParentCollection(collection);
+    last_sync = i.value();
     items << item;
   }
 
   itemsRetrieved( items );
+  resource_collection* rc = new resource_collection;
+  rc->id = collection.id();
+  resource_collections[mod] = *rc;
+  if (!last_sync.isEmpty())
+  {
+    resource_collections[mod].last_sync = QDateTime::fromString(last_sync, Qt::ISODate);
+    updateCollectionSyncTime(collection, resource_collections[mod].last_sync);
+  }
+}
+
+void SugarCrmResource::updateCollectionSyncTime(Collection collection, QDateTime time)
+{
+  *(collection.attribute<DateTimeAttribute>(Collection::AddIfMissing)) = time;
+  Akonadi::CollectionModifyJob *job = new Akonadi::CollectionModifyJob( collection );
+  connect( job, SIGNAL(result(KJob*)), this, SLOT(finishUpdateCollectionSyncTime(KJob*)) );
+}
+
+void SugarCrmResource::finishUpdateCollectionSyncTime(KJob *job)
+{
+  if (job->error() != 0)
+    qDebug("%s", job->errorString().toLatin1().constData());
 }
 
 /*!

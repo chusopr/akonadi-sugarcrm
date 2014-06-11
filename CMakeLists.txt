@@ -46,6 +46,7 @@ set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${KDE4_ENABLE_EXCEPTIONS}" )
 ########### next target ###############
 
 set( sugarcrmresource_SRCS
+  datetimeattribute.cpp
   qtsoap/qtsoap.cpp
   sugarconfig.cpp
   sugarcrmresource.cpp
