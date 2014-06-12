@@ -19,6 +19,10 @@
 #include <KABC/Addressee>
 #include <KCalCore/Todo>
 #include <KCalCore/Event>
+#include <Akonadi/ItemFetchJob>
+#include <Akonadi/ItemCreateJob>
+#include <Akonadi/ItemModifyJob>
+#include <Akonadi/ItemDeleteJob>
 #include <Akonadi/ItemFetchScope>
 #include <Akonadi/CollectionFetchJob>
 #include <Akonadi/CollectionFetchScope>
@@ -121,9 +125,84 @@ void SugarCrmResource::resourceCollectionsRetrieved(KJob *job)
     resource_collection* rc = new resource_collection;
     rc->id = c.id();
     if (c.hasAttribute<DateTimeAttribute>())
-      rc->last_sync = c.attribute<DateTimeAttribute>()->value();
+      rc->last_sync = new QDateTime(c.attribute<DateTimeAttribute>()->value());
     resource_collections[c.remoteId()] = *rc;
   }
+  if (resource_collections.count() > 0)
+    QTimer::singleShot(5000, this, SLOT(update()));
+}
+
+void SugarCrmResource::update()
+{
+  QMapIterator<QString, resource_collection> rc(resource_collections);
+  while (rc.hasNext())
+  {
+    rc.next();
+    if (rc.value().last_sync == NULL) continue;
+    QHash<QString, QMap<QString, QString> > *entries = soap->getEntries(rc.key(), rc.value().last_sync);
+    QHashIterator<QString, QMap<QString, QString> > entry(*entries);
+    QDateTime *last_sync = rc.value().last_sync;
+    while (entry.hasNext())
+    {
+      entry.next();
+      Item i(Modules[rc.key()].mimes.first());
+      i.setRemoteId(entry.key());
+      Collection c(rc.value().id);
+      // To delete and modify, we first need to fetch Akonadi item
+      if ((entry.value()["deleted"] == "1") || (QDateTime::fromString(entry.value()["date_entered"], Qt::ISODate) <= *(rc.value().last_sync)))
+      {
+        ItemFetchJob *itemJob = new ItemFetchJob(i);
+        QEventLoop loop;
+        connect(itemJob, SIGNAL(finished(KJob*)), &loop, SLOT(quit()));
+        itemJob->setCollection(c);
+        loop.exec();
+        if ((itemJob->error() == 0) && (itemJob->items().count() == 1))
+          i = itemJob->items().first();
+      }
+      if (entry.value()["deleted"] == "1")
+      {
+        ItemDeleteJob *itemJob = new ItemDeleteJob(i);
+        QEventLoop loop;
+        connect(itemJob, SIGNAL(finished(KJob*)), &loop, SLOT(quit()));
+        loop.exec();
+        if (itemJob->error() != 0)
+          // TODO If it can't find item, error should probably be ignored.
+          qDebug("Unable to delete item %s: %s", entry.key().toLatin1().constData(), itemJob->errorString().toLatin1().constData());
+      }
+      else if (QDateTime::fromString(entry.value()["date_entered"], Qt::ISODate) <= *(rc.value().last_sync))
+      {
+        // Modification
+        QHash<QString, QString> *soapItem = soap->getEntry(rc.key(), entry.key());
+        Item newItem = (this->*SugarCrmResource::Modules[rc.key()].payload_function)(*soapItem, i);
+        newItem.setRemoteId(i.remoteId());
+        newItem.setParentCollection(i.parentCollection());
+        ItemModifyJob *itemJob = new ItemModifyJob(newItem);
+        QEventLoop loop;
+        connect(itemJob, SIGNAL(finished(KJob*)), &loop, SLOT(quit()));
+        loop.exec();
+        if (itemJob->error() != 0)
+          qDebug("Unable to modify item %s: %s", entry.key().toLatin1().constData(), itemJob->errorString().toLatin1().constData());
+      }
+      else
+      {
+        // Addition
+        QHash<QString, QString> *soapItem = soap->getEntry(rc.key(), entry.key());
+        Item newItem = (this->*SugarCrmResource::Modules[rc.key()].payload_function)(*soapItem, i);
+        newItem.setRemoteId(i.remoteId());
+        newItem.setParentCollection(i.parentCollection());
+        ItemCreateJob *itemJob = new ItemCreateJob(newItem, c, this);
+        QEventLoop loop;
+        connect(itemJob, SIGNAL(finished(KJob*)), &loop, SLOT(quit()));
+        loop.exec();
+        if (itemJob->error() != 0)
+          qDebug("Unable to add item %s: %s", entry.key().toLatin1().constData(), itemJob->errorString().toLatin1().constData());
+      }
+      last_sync = new QDateTime(QDateTime::fromString(entry.value()["date_modified"], Qt::ISODate));
+    }
+    if (*last_sync > *(rc.value().last_sync))
+      resource_collections[rc.key()].last_sync = last_sync;
+  }
+  QTimer::singleShot(5000, this, SLOT(update()));
 }
 
 /*!
@@ -182,6 +261,8 @@ void SugarCrmResource::retrieveCollections()
   collections << b;
 
   collectionsRetrieved(collections);
+  // TODO configure interval
+  QTimer::singleShot(5000, this, SLOT(update()));
 }
 
 /*!
@@ -202,11 +283,11 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
 
   // Request items to SugarSoap
   soap = new SugarSoap(Settings::self()->url().url());
-  QHash<QString, QString> *soapItems = soap->getEntries(mod);
+  QHash<QString, QMap<QString, QString> > *soapItems = soap->getEntries(mod);
 
   // At this step, we only need their remoteIds.
   Item::List items;
-  QHashIterator<QString, QString> i(*soapItems);
+  QHashIterator<QString, QMap<QString, QString> > i(*soapItems);
   QString last_sync;
   while (i.hasNext())
   {
@@ -214,7 +295,7 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
     Item item(Modules[mod].mimes[0]);
     item.setRemoteId(i.key() + "@" + mod);
     item.setParentCollection(collection);
-    last_sync = i.value();
+    last_sync = i.value()["date_modified"];
     items << item;
   }
 
@@ -224,8 +305,8 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
   resource_collections[mod] = *rc;
   if (!last_sync.isEmpty())
   {
-    resource_collections[mod].last_sync = QDateTime::fromString(last_sync, Qt::ISODate);
-    updateCollectionSyncTime(collection, resource_collections[mod].last_sync);
+    resource_collections[mod].last_sync = new QDateTime(QDateTime::fromString(last_sync, Qt::ISODate));
+    updateCollectionSyncTime(collection, *(resource_collections[mod].last_sync));
   }
 }
 
@@ -549,8 +630,6 @@ Item SugarCrmResource::bookingPayload(const QHash<QString, QString> &soapItem, c
   {
     // FIXME: It seems that it only gets date but not time
     event->setDuration(soapItem["quantity"].toUInt()*60);
-    KDateTime test = KDateTime::fromString(soapItem["date_start"], KDateTime::ISODate).addSecs(soapItem["quantity"].toUInt()*60);
-    QString teststr = test.toString();
     event->setDtEnd(KDateTime::fromString(soapItem["date_start"], KDateTime::ISODate).addSecs(soapItem["quantity"].toUInt()*60));
     event->setDateTime(KDateTime::fromString(soapItem["date_start"], KDateTime::ISODate).addSecs(soapItem["quantity"].toUInt()*60), KCalCore::IncidenceBase::RoleDisplayEnd);
     event->setDateTime(KDateTime::fromString(soapItem["date_start"], KDateTime::ISODate).addSecs(soapItem["quantity"].toUInt()*60), KCalCore::IncidenceBase::RoleEnd);

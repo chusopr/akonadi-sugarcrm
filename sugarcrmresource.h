@@ -7,6 +7,7 @@
 #include "sugarconfig.h"
 
 struct module;
+struct resource_collection;
 
 class SugarCrmResource : public Akonadi::ResourceBase,
                            public Akonadi::AgentBase::Observer
@@ -25,6 +26,9 @@ class SugarCrmResource : public Akonadi::ResourceBase,
     void retrieveCollections();
     void retrieveItems(const Akonadi::Collection &col);
     bool retrieveItem(const Akonadi::Item &item, const QSet<QByteArray> &parts);
+    void resourceCollectionsRetrieved(KJob *job);
+    void finishUpdateCollectionSyncTime(KJob *job);
+    void update();
 
   protected:
     virtual void aboutToQuit();
@@ -43,6 +47,8 @@ class SugarCrmResource : public Akonadi::ResourceBase,
 
   private:
     QMap<QString, KABC::PhoneNumber::Type> phones;
+    QMap<QString, resource_collection> resource_collections;
+    void updateCollectionSyncTime(Akonadi::Collection collection, QDateTime time);
 };
 
 struct module
@@ -51,6 +57,12 @@ struct module
   QStringList mimes;
   Akonadi::Item (SugarCrmResource::*payload_function)(const QHash<QString, QString> &, const Akonadi::Item &);
   QHash<QString, QString> (SugarCrmResource::*soap_function)(const Akonadi::Item &);
+};
+
+struct resource_collection
+{
+  Akonadi::Collection::Id id;
+  QDateTime *last_sync = NULL;
 };
 
 #endif

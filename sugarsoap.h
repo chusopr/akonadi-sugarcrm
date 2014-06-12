@@ -16,7 +16,7 @@ class SugarSoap : public QObject
   public:
     SugarSoap(QString strurl, QString sid = "");
     QString login(const QString &user, const QString &pass);
-    QHash<QString, QString>* getEntries(QString module);
+    QHash<QString, QMap<QString, QString> >* getEntries(QString module, QDateTime *last_sync = NULL);
     QHash<QString, QString>* getEntry(QString module, const QString& id);
     bool editEntry(QString module, QHash< QString, QString > entry, QString* id);
 
@@ -32,12 +32,13 @@ class SugarSoap : public QObject
     void getResponse();
 
   private:
-    void requestEntries();
+    void requestEntries(QString module, QDateTime* last_sync);
     QtSoapHttpTransport soap_http;
     QString session_id;
     QUrl url;
     QString module;
-    QHash<QString, QString>* entries;
+    QDateTime *last_sync;
+    QHash<QString, QMap<QString, QString> >* entries;
     QHash<QString, QString>* entry;
     bool return_value;
     unsigned int offset;

@@ -130,9 +130,9 @@ void SugarSoap::getLoginResponse()
  * Requests an entry list
  * \param[in] module Module you want to get data from
  */
-QHash<QString, QString>* SugarSoap::getEntries(QString module)
+QHash< QString, QMap< QString, QString > >* SugarSoap::getEntries(QString module, QDateTime* last_sync)
 {
-  entries = new QHash<QString, QString>;
+  entries = new QHash<QString, QMap<QString, QString> >;
   // Check that the request module is one of the ones we allow
   if (!SugarCrmResource::Modules.contains(module))
   {
@@ -151,17 +151,18 @@ QHash<QString, QString>* SugarSoap::getEntries(QString module)
   }
 
   this->module = module;
+  this->last_sync = last_sync;
 
   QEventLoop loop;
   offset = 0;
   connect(this, SIGNAL(allEntries()), &loop, SLOT(quit()));
-  this->requestEntries();
+  this->requestEntries(module, last_sync);
   loop.exec();
   disconnect(this, SIGNAL(allEntries()), &loop, SLOT(quit()));
   return entries;
 }
 
-void SugarSoap::requestEntries()
+void SugarSoap::requestEntries(QString module, QDateTime *last_sync)
 {
   // Build the request
   QtSoapMessage soap_request;
@@ -180,19 +181,27 @@ void SugarSoap::requestEntries()
    */
   QtSoapArray *select_fields = new QtSoapArray(QtSoapQName("select_fields"), QtSoapType::String, 1);
   select_fields->insert(0, new QtSoapSimpleType(QtSoapQName("id"), "id"));
-  select_fields->insert(1, new QtSoapSimpleType(QtSoapQName("date_modified"), "date_modified"));
+  select_fields->insert(1, new QtSoapSimpleType(QtSoapQName("date_entered"), "date_entered"));
+  select_fields->insert(2, new QtSoapSimpleType(QtSoapQName("date_modified"), "date_modified"));
+  select_fields->insert(3, new QtSoapSimpleType(QtSoapQName("deleted"), "deleted"));
 
   // FIXME: probably only id is required
   soap_request.addMethodArgument("session", "", session_id);
   soap_request.addMethodArgument("module_name", "", QString(module));
   // TODO make this configurable
   //soap_request.addMethodArgument("query", "", "cases.Status NOT IN ('Closed', 'Rejected', 'Duplicate')");
-  soap_request.addMethodArgument("query", "", "");
+  if (last_sync != NULL)
+    soap_request.addMethodArgument("query", "", QString("date_modified > '%1' OR date_entered > '%1'").arg(last_sync->toString(Qt::ISODate)));
+  else
+    soap_request.addMethodArgument("query", "", "");
   soap_request.addMethodArgument("order_by", "", "date_modified ASC");
   soap_request.addMethodArgument("offset", "", offset);
   soap_request.addMethodArgument(select_fields);
   soap_request.addMethodArgument("max_results", "", "");
-  soap_request.addMethodArgument("deleted", "", 0);
+  if (last_sync != NULL)
+    soap_request.addMethodArgument("deleted", "", 1);
+  else
+    soap_request.addMethodArgument("deleted", "", 0);
 
   /*!
    * Connects responseReady() event in QtSoapHttpTransport to
@@ -418,11 +427,16 @@ void SugarSoap::entriesReady()
     {
       // Iterate over entries to get their ids
       for (int i=0; i<response["entry_list"].count(); i++)
-        (*entries)[response["entry_list"][i]["name_value_list"][0]["value"].toString()] = response["entry_list"][i]["name_value_list"][1]["value"].toString();
+      {
+        QMap<QString, QString> entry;
+        for (int j=1; j<response["entry_list"][i]["name_value_list"].count(); j++)
+          entry[response["entry_list"][i]["name_value_list"][j]["name"].toString()] = response["entry_list"][i]["name_value_list"][j]["value"].toString();
+        (*entries)[response["entry_list"][i]["name_value_list"][0]["value"].toString()] = entry;
+      }
       unsigned int last_offset = offset;
       offset = response["next_offset"].toInt();
       if (offset > last_offset)
-        requestEntries();
+        requestEntries(module, last_sync);
       else
         emit allEntries();
     }
