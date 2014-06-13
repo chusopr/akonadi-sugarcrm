@@ -62,7 +62,7 @@ struct module
 struct resource_collection
 {
   Akonadi::Collection::Id id;
-  QDateTime *last_sync = NULL;
+  QDateTime *last_sync;
 };
 
 #endif

@@ -124,6 +124,7 @@ void SugarCrmResource::resourceCollectionsRetrieved(KJob *job)
   {
     resource_collection* rc = new resource_collection;
     rc->id = c.id();
+    rc->last_sync = NULL;
     if (c.hasAttribute<DateTimeAttribute>())
       rc->last_sync = new QDateTime(c.attribute<DateTimeAttribute>()->value());
     resource_collections[c.remoteId()] = *rc;
@@ -302,6 +303,7 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
   itemsRetrieved( items );
   resource_collection* rc = new resource_collection;
   rc->id = collection.id();
+  rc->last_sync = NULL;
   resource_collections[mod] = *rc;
   if (!last_sync.isEmpty())
   {
