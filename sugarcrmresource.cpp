@@ -140,65 +140,69 @@ void SugarCrmResource::update()
   {
     rc.next();
     if (rc.value().last_sync == NULL) continue;
-    QHash<QString, QMap<QString, QString> > *entries = soap->getEntries(rc.key(), rc.value().last_sync);
-    QHashIterator<QString, QMap<QString, QString> > entry(*entries);
     QDateTime *last_sync = rc.value().last_sync;
-    while (entry.hasNext())
+    QVector <QMap<QString, QString> > *entries = soap->getEntries(rc.key(), rc.value().last_sync);
+    int num_entries = entries->count();
+    for (
+      int i = 0;
+      i<num_entries;
+      i++
+    )
     {
-      entry.next();
-      Item i(Modules[rc.key()].mimes.first());
-      i.setRemoteId(entry.key());
+      QMap<QString, QString> entry = entries->at(i);
+      Item item(Modules[rc.key()].mimes.first());
+      item.setRemoteId(entry["id"] + "@" + rc.key());
       Collection c(rc.value().id);
       // To delete and modify, we first need to fetch Akonadi item
-      if ((entry.value()["deleted"] == "1") || (QDateTime::fromString(entry.value()["date_entered"], Qt::ISODate) <= *(rc.value().last_sync)))
+      if ((entry["deleted"] == "1") || (QDateTime::fromString(entry["date_entered"], Qt::ISODate) <= *(rc.value().last_sync)))
       {
-        ItemFetchJob *itemJob = new ItemFetchJob(i);
+        ItemFetchJob *itemJob = new ItemFetchJob(item);
         QEventLoop loop;
         connect(itemJob, SIGNAL(finished(KJob*)), &loop, SLOT(quit()));
         itemJob->setCollection(c);
         loop.exec();
         if ((itemJob->error() == 0) && (itemJob->items().count() == 1))
-          i = itemJob->items().first();
+          item = itemJob->items().first();
       }
-      if (entry.value()["deleted"] == "1")
+      if (entry["deleted"] == "1")
       {
-        ItemDeleteJob *itemJob = new ItemDeleteJob(i);
+        ItemDeleteJob *itemJob = new ItemDeleteJob(item);
         QEventLoop loop;
         connect(itemJob, SIGNAL(finished(KJob*)), &loop, SLOT(quit()));
         loop.exec();
         if (itemJob->error() != 0)
           // TODO If it can't find item, error should probably be ignored.
-          qDebug("Unable to delete item %s: %s", entry.key().toLatin1().constData(), itemJob->errorString().toLatin1().constData());
+          qDebug("Unable to delete item %s: %s", entry["id"].toLatin1().constData(), itemJob->errorString().toLatin1().constData());
       }
-      else if (QDateTime::fromString(entry.value()["date_entered"], Qt::ISODate) <= *(rc.value().last_sync))
+      else if (QDateTime::fromString(entry["date_entered"], Qt::ISODate) <= *(rc.value().last_sync))
       {
         // Modification
-        QHash<QString, QString> *soapItem = soap->getEntry(rc.key(), entry.key());
-        Item newItem = (this->*SugarCrmResource::Modules[rc.key()].payload_function)(*soapItem, i);
-        newItem.setRemoteId(i.remoteId());
-        newItem.setParentCollection(i.parentCollection());
+        QHash<QString, QString> *soapItem = soap->getEntry(rc.key(), entry["id"]);
+        Item newItem = (this->*SugarCrmResource::Modules[rc.key()].payload_function)(*soapItem, item);
+        newItem.setRemoteId(item.remoteId());
+        newItem.setParentCollection(item.parentCollection());
         ItemModifyJob *itemJob = new ItemModifyJob(newItem);
         QEventLoop loop;
         connect(itemJob, SIGNAL(finished(KJob*)), &loop, SLOT(quit()));
         loop.exec();
         if (itemJob->error() != 0)
-          qDebug("Unable to modify item %s: %s", entry.key().toLatin1().constData(), itemJob->errorString().toLatin1().constData());
+          qDebug("Unable to modify item %s: %s", entry["id"].toLatin1().constData(), itemJob->errorString().toLatin1().constData());
       }
       else
       {
         // Addition
-        QHash<QString, QString> *soapItem = soap->getEntry(rc.key(), entry.key());
-        Item newItem = (this->*SugarCrmResource::Modules[rc.key()].payload_function)(*soapItem, i);
-        newItem.setRemoteId(i.remoteId());
-        newItem.setParentCollection(i.parentCollection());
+        QHash<QString, QString> *soapItem = soap->getEntry(rc.key(), entry["id"]);
+        Item newItem = (this->*SugarCrmResource::Modules[rc.key()].payload_function)(*soapItem, item);
+        newItem.setRemoteId(item.remoteId());
+        newItem.setParentCollection(item.parentCollection());
         ItemCreateJob *itemJob = new ItemCreateJob(newItem, c, this);
         QEventLoop loop;
         connect(itemJob, SIGNAL(finished(KJob*)), &loop, SLOT(quit()));
         loop.exec();
         if (itemJob->error() != 0)
-          qDebug("Unable to add item %s: %s", entry.key().toLatin1().constData(), itemJob->errorString().toLatin1().constData());
+          qDebug("Unable to add item %s: %s", entry["id"].toLatin1().constData(), itemJob->errorString().toLatin1().constData());
       }
-      last_sync = new QDateTime(QDateTime::fromString(entry.value()["date_modified"], Qt::ISODate));
+      last_sync = new QDateTime(QDateTime::fromString(entry["date_modified"], Qt::ISODate));
     }
     if (*last_sync > *(rc.value().last_sync))
       resource_collections[rc.key()].last_sync = last_sync;
@@ -284,19 +288,21 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
 
   // Request items to SugarSoap
   soap = new SugarSoap(Settings::self()->url().url());
-  QHash<QString, QMap<QString, QString> > *soapItems = soap->getEntries(mod);
+  QVector <QMap<QString, QString> > *soapItems = soap->getEntries(mod);
 
   // At this step, we only need their remoteIds.
   Item::List items;
-  QHashIterator<QString, QMap<QString, QString> > i(*soapItems);
   QString last_sync;
-  while (i.hasNext())
+  for (
+    QVector<QMap<QString, QString> >::iterator soapItem = soapItems->begin();
+    soapItem != soapItems->end();
+    soapItem++
+  )
   {
-    i.next();
     Item item(Modules[mod].mimes[0]);
-    item.setRemoteId(i.key() + "@" + mod);
+    item.setRemoteId((*soapItem)["id"] + "@" + mod);
     item.setParentCollection(collection);
-    last_sync = i.value()["date_modified"];
+    last_sync = (*soapItem)["date_modified"];
     items << item;
   }
 

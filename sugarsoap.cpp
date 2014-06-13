@@ -130,9 +130,9 @@ void SugarSoap::getLoginResponse()
  * Requests an entry list
  * \param[in] module Module you want to get data from
  */
-QHash< QString, QMap< QString, QString > >* SugarSoap::getEntries(QString module, QDateTime* last_sync)
+QVector<QMap<QString, QString > >* SugarSoap::getEntries(QString module, QDateTime* last_sync)
 {
-  entries = new QHash<QString, QMap<QString, QString> >;
+  entries = new QVector<QMap<QString, QString> >;
   // Check that the request module is one of the ones we allow
   if (!SugarCrmResource::Modules.contains(module))
   {
@@ -429,9 +429,9 @@ void SugarSoap::entriesReady()
       for (int i=0; i<response["entry_list"].count(); i++)
       {
         QMap<QString, QString> entry;
-        for (int j=1; j<response["entry_list"][i]["name_value_list"].count(); j++)
+        for (int j=0; j<response["entry_list"][i]["name_value_list"].count(); j++)
           entry[response["entry_list"][i]["name_value_list"][j]["name"].toString()] = response["entry_list"][i]["name_value_list"][j]["value"].toString();
-        (*entries)[response["entry_list"][i]["name_value_list"][0]["value"].toString()] = entry;
+        entries->append(entry);
       }
       unsigned int last_offset = offset;
       offset = response["next_offset"].toInt();
