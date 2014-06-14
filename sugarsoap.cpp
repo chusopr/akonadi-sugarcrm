@@ -150,19 +150,17 @@ QVector<QMap<QString, QString > >* SugarSoap::getEntries(QString module, QDateTi
       return entries;
   }
 
-  this->module = module;
   this->last_sync = last_sync;
 
   QEventLoop loop;
-  offset = 0;
   connect(this, SIGNAL(allEntries()), &loop, SLOT(quit()));
-  this->requestEntries(module, last_sync);
+  this->requestEntries(module, 0, last_sync);
   loop.exec();
   disconnect(this, SIGNAL(allEntries()), &loop, SLOT(quit()));
   return entries;
 }
 
-void SugarSoap::requestEntries(QString module, QDateTime *last_sync)
+void SugarSoap::requestEntries(QString module, unsigned int offset, QDateTime *last_sync)
 {
   // Build the request
   QtSoapMessage soap_request;
@@ -207,7 +205,9 @@ void SugarSoap::requestEntries(QString module, QDateTime *last_sync)
    * Connects responseReady() event in QtSoapHttpTransport to
    * getResponse() method in this
    */
-  connect(&soap_http, SIGNAL(responseReady()), this, SLOT(entriesReady()));
+  connect(&soap_http, SIGNAL(responseReady()), &mapper, SLOT(map()));
+  mapper.setMapping(&soap_http, module);
+  connect(&mapper, SIGNAL(mapped(QString)), this, SLOT(entriesReady(QString)));
   // Finally, send the request
   soap_http.setHost(url.host(),
                     url.toString().startsWith("https://")? true : false,
@@ -240,8 +240,6 @@ QHash<QString, QString>* SugarSoap::getEntry(QString module, const QString &id)
       return entry;
   }
 
-  this->module = module;
-
   // Build the request
   QtSoapMessage soap_request;
   soap_request.setMethod("get_entry");
@@ -271,7 +269,9 @@ QHash<QString, QString>* SugarSoap::getEntry(QString module, const QString &id)
    * Connects responseReady() event in QtSoapHttpTransport to
    * getResponse() method in this
    */
-  connect(&soap_http, SIGNAL(responseReady()), this, SLOT(entryReady()));
+  connect(&soap_http, SIGNAL(responseReady()), &mapper, SLOT(map()));
+  mapper.setMapping(&soap_http, module);
+  connect(&mapper, SIGNAL(mapped(QString)), this, SLOT(entryReady(QString)));
   QEventLoop loop;
   connect(&soap_http, SIGNAL(responseReady()), &loop, SLOT(quit()));
   // Finally, send the request
@@ -304,8 +304,6 @@ bool SugarSoap::editEntry(QString module, QHash< QString, QString > entry, QStri
     if ((session_id.isEmpty()) || (session_id.isNull())) // login failed
       return false;
   }
-
-  this->module = module;
 
   // Build the request
   QtSoapMessage soap_request;
@@ -342,7 +340,11 @@ bool SugarSoap::editEntry(QString module, QHash< QString, QString > entry, QStri
    * Connects responseReady() event in QtSoapHttpTransport to
    * getResponse() method in this
    */
-  connect(&soap_http, SIGNAL(responseReady()), this, SLOT(getResponse()));
+  QObject properties(this);
+  properties.setProperty("return_value", false);
+  connect(&soap_http, SIGNAL(responseReady()), &mapper, SLOT(map()));
+  mapper.setMapping(&soap_http, &properties);
+  connect(&mapper, SIGNAL(mapped(QObject*)), this, SLOT(getResponse(QObject*)));
   QEventLoop loop;
   connect(&soap_http, SIGNAL(responseReady()), &loop, SLOT(quit()));
   // Finally, send the request
@@ -355,13 +357,13 @@ bool SugarSoap::editEntry(QString module, QHash< QString, QString > entry, QStri
   disconnect(&soap_http, SIGNAL(responseReady()), this, SLOT(getResponse()));
   disconnect(&soap_http, SIGNAL(responseReady()), &loop, SLOT(quit()));
 
-  if ((return_value) && (id->isEmpty()))
+  if ((properties.property("return_value").toBool()) && (id->isEmpty()))
     (*id) = soap_http.getResponse().method()["return"]["id"].value().toString();
-  return return_value;
+  return properties.property("return_value").toBool();
 }
 
 // TODO other signals should call this one to check return value
-void SugarSoap::getResponse()
+void SugarSoap::getResponse(QObject *properties)
 {
   // Get response
   const QtSoapMessage &message = soap_http.getResponse();
@@ -370,7 +372,7 @@ void SugarSoap::getResponse()
   if (message.isFault())
   {
     qDebug("Error: %s", message.faultString().value().toString().toLatin1().constData());
-    return_value = false;
+    properties->setProperty("return_value", false);
   }
   else
   {
@@ -383,12 +385,12 @@ void SugarSoap::getResponse()
       qDebug("Request failed");
       qDebug("%s", response["error"]["name"].value().toString().toLatin1().constData());
       qDebug("%s", response["error"]["description"].value().toString().toLatin1().constData());
-      return_value = false;
+      properties->setProperty("return_value", false);
     }
     else
     {
       qDebug("Request OK");
-      return_value = true;
+      properties->setProperty("return_value", true);
     }
   }
 }
@@ -396,7 +398,7 @@ void SugarSoap::getResponse()
 /*!
  * Handles server response after request
  */
-void SugarSoap::entriesReady()
+void SugarSoap::entriesReady(QString module)
 {
   // Get response
   const QtSoapMessage &message = soap_http.getResponse();
@@ -433,17 +435,15 @@ void SugarSoap::entriesReady()
           entry[response["entry_list"][i]["name_value_list"][j]["name"].toString()] = response["entry_list"][i]["name_value_list"][j]["value"].toString();
         entries->append(entry);
       }
-      unsigned int last_offset = offset;
-      offset = response["next_offset"].toInt();
-      if (offset > last_offset)
-        requestEntries(module, last_sync);
+      if (response["result_count"].toInt() > 0)
+        requestEntries(module, response["next_offset"].toInt(), last_sync);
       else
         emit allEntries();
     }
   }
 }
 
-void SugarSoap::entryReady()
+void SugarSoap::entryReady(QString module)
 {
   // Get response
   const QtSoapMessage &message = soap_http.getResponse();

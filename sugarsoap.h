@@ -27,21 +27,19 @@ class SugarSoap : public QObject
 
   private Q_SLOTS:
     void getLoginResponse();
-    void entriesReady();
-    void entryReady();
-    void getResponse();
+    void entriesReady(QString module);
+    void entryReady(QString module);
+    void getResponse(QObject *properties);
 
   private:
-    void requestEntries(QString module, QDateTime* last_sync);
+    void requestEntries(QString module, unsigned int offset, QDateTime* last_sync);
     QtSoapHttpTransport soap_http;
     QString session_id;
     QUrl url;
-    QString module;
     QDateTime *last_sync;
     QVector<QMap<QString, QString> >* entries;
     QHash<QString, QString>* entry;
-    bool return_value;
-    unsigned int offset;
+    QSignalMapper mapper;
 };
 
 #endif
