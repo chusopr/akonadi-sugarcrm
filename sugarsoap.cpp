@@ -14,7 +14,7 @@
 #include <QDomElement>
 
 // This typedef is not used, it is needed just because compiler macros
-// can't use macros containing commas...
+// can't use arguments containing commas...
 typedef QVector<QMap<QString, QString > > QVectorQMapQStringQString;
 // ...here
 Q_DECLARE_METATYPE(QVectorQMapQStringQString);
