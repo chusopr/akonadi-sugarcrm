@@ -13,6 +13,12 @@
 #include <iostream>
 #include <QDomElement>
 
+// This typedef is not used, it is needed just because compiler macros
+// can't use macros containing commas...
+typedef QVector<QMap<QString, QString > > QVectorQMapQStringQString;
+// ...here
+Q_DECLARE_METATYPE(QVectorQMapQStringQString);
+
 /*!
  * \class SugarSoap
  * \brief The SugarSoap class handles requests by SugarCrmResource to SugarCRM SOAP API.
@@ -132,13 +138,13 @@ void SugarSoap::getLoginResponse()
  */
 QVector<QMap<QString, QString > >* SugarSoap::getEntries(QString module, QDateTime* last_sync)
 {
-  entries = new QVector<QMap<QString, QString> >;
+  QVector<QMap<QString, QString> > entries;
   // Check that the request module is one of the ones we allow
   if (!SugarCrmResource::Modules.contains(module))
   {
     qDebug("Invalid module requested");
     // TODO emit something?
-    return entries;
+    return new QVector<QMap<QString, QString> > (entries);
   }
 
   // TODO move this check to login method
@@ -147,22 +153,25 @@ QVector<QMap<QString, QString > >* SugarSoap::getEntries(QString module, QDateTi
   {
     this->login(Settings::self()->username(), Settings::self()->password());
     if ((session_id.isEmpty()) || (session_id.isNull())) // login failed
-      return entries;
+      return new QVector<QMap<QString, QString> > (entries);
   }
 
   this->last_sync = last_sync;
 
+  QObject *properties = new QObject(this);
+  properties->setProperty("module", module);
+  properties->setProperty("entries", QVariant::fromValue<QVector<QMap<QString, QString > > >(entries));
   QEventLoop loop;
   connect(this, SIGNAL(allEntries()), &loop, SLOT(quit()));
-  this->requestEntries(module, 0, last_sync);
+  this->requestEntries(properties, 0, last_sync);
   loop.exec();
-  disconnect(this, SIGNAL(allEntries()), &loop, SLOT(quit()));
-  return entries;
+  return new QVector<QMap<QString, QString> > (properties->property("entries").value<QVector<QMap<QString, QString > > >());
 }
 
-void SugarSoap::requestEntries(QString module, unsigned int offset, QDateTime *last_sync)
+void SugarSoap::requestEntries(QObject *properties, unsigned int offset, QDateTime *last_sync)
 {
   // Build the request
+  QString module = properties->property("module").toString();
   QtSoapMessage soap_request;
   soap_request.setMethod("get_entry_list");
 
@@ -205,9 +214,10 @@ void SugarSoap::requestEntries(QString module, unsigned int offset, QDateTime *l
    * Connects responseReady() event in QtSoapHttpTransport to
    * getResponse() method in this
    */
+
   connect(&soap_http, SIGNAL(responseReady()), &mapper, SLOT(map()));
-  mapper.setMapping(&soap_http, module);
-  connect(&mapper, SIGNAL(mapped(QString)), this, SLOT(entriesReady(QString)));
+  mapper.setMapping(&soap_http, properties);
+  connect(&mapper, SIGNAL(mapped(QObject*)), this, SLOT(entriesReady(QObject*)));
   // Finally, send the request
   soap_http.setHost(url.host(),
                     url.toString().startsWith("https://")? true : false,
@@ -398,8 +408,9 @@ void SugarSoap::getResponse(QObject *properties)
 /*!
  * Handles server response after request
  */
-void SugarSoap::entriesReady(QString module)
+void SugarSoap::entriesReady(QObject* properties)
 {
+  QVector<QMap<QString, QString > > entries = properties->property("entries").value<QVector<QMap<QString, QString > > >();
   // Get response
   const QtSoapMessage &message = soap_http.getResponse();
 
@@ -433,10 +444,11 @@ void SugarSoap::entriesReady(QString module)
         QMap<QString, QString> entry;
         for (int j=0; j<response["entry_list"][i]["name_value_list"].count(); j++)
           entry[response["entry_list"][i]["name_value_list"][j]["name"].toString()] = response["entry_list"][i]["name_value_list"][j]["value"].toString();
-        entries->append(entry);
+        entries.append(entry);
       }
+      properties->setProperty("entries", QVariant::fromValue<QVector<QMap<QString, QString > > >(entries));
       if (response["result_count"].toInt() > 0)
-        requestEntries(module, response["next_offset"].toInt(), last_sync);
+        requestEntries(properties, response["next_offset"].toInt(), last_sync);
       else
         emit allEntries();
     }
