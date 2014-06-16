@@ -141,6 +141,7 @@ void SugarCrmResource::update()
     rc.next();
     if (rc.value().last_sync == NULL) continue;
     QDateTime *last_sync = rc.value().last_sync;
+    soap = new SugarSoap(Settings::self()->url().url());
     QVector <QMap<QString, QString> > *entries = soap->getEntries(rc.key(), rc.value().last_sync);
     int num_entries = entries->count();
     for (
