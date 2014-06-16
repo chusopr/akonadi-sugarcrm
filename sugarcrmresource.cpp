@@ -206,7 +206,10 @@ void SugarCrmResource::update()
       last_sync = new QDateTime(QDateTime::fromString(entry["date_modified"], Qt::ISODate));
     }
     if (*last_sync > *(rc.value().last_sync))
+    {
       resource_collections[rc.key()].last_sync = last_sync;
+      updateCollectionSyncTime(Collection(rc.value().id), *last_sync);
+    }
   }
   QTimer::singleShot(5000, this, SLOT(update()));
 }
