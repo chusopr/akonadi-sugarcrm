@@ -29,6 +29,18 @@ QString SugarConfig::password()
     return ui->password->text();
 }
 
+unsigned char SugarConfig::updateInterval()
+{
+    if (ui->updateInterval->value() > 255)
+      return 255;
+    return ui->updateInterval->value();
+}
+
+UpdateUnits SugarConfig::updateUnits()
+{
+    return (UpdateUnits)ui->updateUnits->currentIndex();
+}
+
 void SugarConfig::setUrl(QString s)
 {
     ui->url->setText(s);
@@ -42,4 +54,14 @@ void SugarConfig::setUsername(QString s)
 void SugarConfig::setPassword(QString s)
 {
     ui->password->setText(s);
+}
+
+void SugarConfig::setUpdateInterval(unsigned int i)
+{
+    ui->updateInterval->setValue(i);
+}
+
+void SugarConfig::setUpdateUnits(UpdateUnits r)
+{
+    ui->updateUnits->setCurrentIndex(r);
 }

@@ -22,6 +22,10 @@
       <label>SugarCRM cached session id</label>
       <default></default>
     </entry>
+    <entry name="UpdateInterval" type="UInt">
+      <label>Time in seconds to wait to pull updates from server.</label>
+      <default>300</default>
+    </entry>
     <!-- TODO entry name="ReadOnly" type="Bool">
       <label>Do not change the actual backend data.</label>
       <default>false</default>

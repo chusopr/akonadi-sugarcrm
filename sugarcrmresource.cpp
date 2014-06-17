@@ -130,7 +130,7 @@ void SugarCrmResource::resourceCollectionsRetrieved(KJob *job)
     resource_collections[c.remoteId()] = *rc;
   }
   if (resource_collections.count() > 0)
-    QTimer::singleShot(5000, this, SLOT(update()));
+    QTimer::singleShot(Settings::self()->updateInterval()*1000, this, SLOT(update()));
 }
 
 void SugarCrmResource::update()
@@ -211,7 +211,7 @@ void SugarCrmResource::update()
       updateCollectionSyncTime(Collection(rc.value().id), *last_sync);
     }
   }
-  QTimer::singleShot(5000, this, SLOT(update()));
+  QTimer::singleShot(Settings::self()->updateInterval()*1000, this, SLOT(update()));
 }
 
 /*!
@@ -271,7 +271,7 @@ void SugarCrmResource::retrieveCollections()
 
   collectionsRetrieved(collections);
   // TODO configure interval
-  QTimer::singleShot(5000, this, SLOT(update()));
+  QTimer::singleShot(Settings::self()->updateInterval()*1000, this, SLOT(update()));
 }
 
 /*!
@@ -743,6 +743,19 @@ void SugarCrmResource::configure(const WId windowId)
   configDlg.setUrl(Settings::self()->url().prettyUrl());
   configDlg.setUsername(Settings::self()->username());
   configDlg.setPassword(Settings::self()->password());
+  if (Settings::self()->findItem("updateInterval"))
+  {
+    if (Settings::self()->updateInterval() % 60 == 0)
+    {
+      configDlg.setUpdateUnits(Minutes);
+      configDlg.setUpdateInterval(Settings::self()->updateInterval() / 60);
+    }
+    else
+    {
+      configDlg.setUpdateUnits(Seconds);
+      configDlg.setUpdateInterval(Settings::self()->updateInterval());
+    }
+  }
 
   do
   {
@@ -766,6 +779,7 @@ void SugarCrmResource::configure(const WId windowId)
   Settings::self()->setUrl(configDlg.url());
   Settings::self()->setUsername(configDlg.username());
   Settings::self()->setPassword(configDlg.password());
+  Settings::self()->setUpdateInterval(configDlg.updateInterval() * (configDlg.updateUnits() == 0? 1 : 60));
 
   // And write configuration file
   Settings::self()->writeConfig();
