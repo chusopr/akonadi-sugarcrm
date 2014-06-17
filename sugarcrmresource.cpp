@@ -786,8 +786,9 @@ void SugarCrmResource::configure(const WId windowId)
 
   emit configurationDialogAccepted();
 
-  // Start synchronization
-  synchronize();
+  // If this is first configuration, start synchronization
+  if (resource_collections.isEmpty())
+    synchronize();
 }
 
 void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Collection &collection )
