@@ -71,6 +71,7 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   phones["phone_mobile"] = KABC::PhoneNumber::Cell;
   phones["phone_work"]   = KABC::PhoneNumber::Work;
   phones["phone_fax"]    = KABC::PhoneNumber::Fax;
+  delete modinfo;
 
   modinfo = new module;
   modinfo->fields << "id" << "name" << "description" << "status" << "priority" << "date_entered" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
@@ -78,6 +79,7 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   modinfo->payload_function = &SugarCrmResource::taskPayload;
   modinfo->soap_function = &SugarCrmResource::taskSoap;
   SugarCrmResource::Modules["Tasks"] = *modinfo;
+  delete modinfo;
 
   modinfo = new module;
   modinfo->fields << "id" << "name" << "description" << "case_number" << "status" << "priority" << "date_entered" << "date_due_flag" << "date_due" << "date_start_flag" << "date_start";
@@ -86,6 +88,7 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   modinfo->payload_function = &SugarCrmResource::taskPayload;
   modinfo->soap_function = &SugarCrmResource::taskSoap;
   SugarCrmResource::Modules["Cases"] = *modinfo;
+  delete modinfo;
 
   modinfo = new module;
   modinfo->fields << "id" << "name" << "description" << "percent_complete" << "project_phase" << "date_entered" << "date_ending" << "date_starting";
@@ -94,6 +97,7 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   modinfo->payload_function = &SugarCrmResource::projectPayload;
   modinfo->soap_function = &SugarCrmResource::projectSoap;
   SugarCrmResource::Modules["Project"] = *modinfo;
+  delete modinfo;
 
   modinfo = new module;
   modinfo->fields << "id" << "name" << "status" << "quantity" << "date_start" << "related_type" << "related_id" << "date_entered";
@@ -102,6 +106,7 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   modinfo->payload_function = &SugarCrmResource::bookingPayload;
   modinfo->soap_function = &SugarCrmResource::bookingSoap;
   SugarCrmResource::Modules["Booking"] = *modinfo;
+  delete modinfo;
 
   new SettingsAdaptor( Settings::self() );
   QDBusConnection::sessionBus().registerObject( QLatin1String( "/Settings" ),
@@ -301,6 +306,7 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
   rc->id = collection.id();
   rc->last_sync = NULL;
   resource_collections[mod] = *rc;
+  delete rc;
   if (!last_sync.isEmpty())
   {
     resource_collections[mod].last_sync = new QDateTime(QDateTime::fromString(last_sync, Qt::ISODate));
@@ -341,6 +347,7 @@ bool SugarCrmResource::retrieveItem( const Akonadi::Item &item, const QSet<QByte
   // Call function pointer to the function that returns the appropi
   QHash<QString, QString> *soapItem = soap->getEntry(mod, remoteId);
   Item newItem = (this->*SugarCrmResource::Modules[mod].payload_function)(*soapItem, item);
+  delete soapItem;
   newItem.setRemoteId(item.remoteId());
   newItem.setParentCollection(item.parentCollection());
   // end of code to move to retrieveItem()
@@ -882,6 +889,7 @@ void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Coll
       // Refetch payload to get case name
       QHash<QString, QString> *soapItem = soap->getEntry(mod, *id);
       Item tmpItem = taskPayload(*soapItem, newItem);
+      delete soapItem;
       KCalCore::Todo::Ptr payload = tmpItem.payload<KCalCore::Todo::Ptr>();
       // FIXME this doesn't work
       newItem.payload<KCalCore::Todo::Ptr>().swap(payload);
