@@ -245,42 +245,42 @@ void SugarCrmResource::retrieveCollections()
   Collection c;
   c.setParentCollection(root);
   c.setRemoteId("Contacts");
-  c.setName(i18n("Contacts from SugarCRM resource at %1").arg(url.url()));
+  c.setName(i18n("Contacts"));
   c.setContentMimeTypes(QStringList(KABC::Addressee::mimeType()));
   collections << c;
 
   Collection l;
   l.setParentCollection(root);
   l.setRemoteId("Leads");
-  l.setName(i18n("Leads from SugarCRM resource at %1").arg(url.url()));
+  l.setName(i18n("Leads"));
   l.setContentMimeTypes(QStringList(KABC::Addressee::mimeType()));
   collections << l;
 
   Collection t;
   t.setParentCollection(root);
   t.setRemoteId("Tasks");
-  t.setName(i18n("Tasks from SugarCRM resource at %1").arg(url.url()));
+  t.setName(i18n("Tasks"));
   t.setContentMimeTypes(QStringList(KCalCore::Todo::todoMimeType()));
   collections << t;
 
   Collection c2;
   c2.setParentCollection(root);
   c2.setRemoteId("Cases");
-  c2.setName(i18n("Cases from SugarCRM resource at %1").arg(url.url()));
+  c2.setName(i18n("Cases"));
   c2.setContentMimeTypes(QStringList(KCalCore::Todo::todoMimeType()));
   collections << c2;
 
   Collection p;
   p.setParentCollection(root);
   p.setRemoteId("Project");
-  p.setName(i18n("Projects from SugarCRM resource at %1").arg(url.url()));
+  p.setName(i18n("Projects"));
   p.setContentMimeTypes(QStringList(KCalCore::Todo::todoMimeType()));
   collections << p;
 
   Collection b;
   b.setParentCollection(root);
   b.setRemoteId("Booking");
-  b.setName(i18n("Booking from SugarCRM resource at %1").arg(url.url()));
+  b.setName(i18n("Booking"));
   b.setContentMimeTypes(QStringList(KCalCore::Event::eventMimeType()));
   collections << b;
 
