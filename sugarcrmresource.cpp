@@ -88,6 +88,14 @@ SugarCrmResource::SugarCrmResource( const QString &id )
   SugarCrmResource::Modules["Cases"] = *modinfo;
 
   modinfo = new module;
+  modinfo->fields << "id" << "name" << "description" << "percent_complete" << "project_phase" << "date_entered" << "date_ending" << "date_starting";
+  modinfo->mimes << KCalCore::Todo::todoMimeType();
+  // TODO: where status is active
+  modinfo->payload_function = &SugarCrmResource::projectPayload;
+  modinfo->soap_function = &SugarCrmResource::projectSoap;
+  SugarCrmResource::Modules["Project"] = *modinfo;
+
+  modinfo = new module;
   modinfo->fields << "id" << "name" << "status" << "quantity" << "date_start" << "related_type" << "related_id" << "date_entered";
   modinfo->mimes << KCalCore::Event::eventMimeType();
   // TODO: where status is active
@@ -261,6 +269,13 @@ void SugarCrmResource::retrieveCollections()
   c2.setName(i18n("Cases from SugarCRM resource at %1").arg(url.url()));
   c2.setContentMimeTypes(QStringList(KCalCore::Todo::todoMimeType()));
   collections << c2;
+
+  Collection p;
+  p.setParentCollection(root);
+  p.setRemoteId("Project");
+  p.setName(i18n("Projects from SugarCRM resource at %1").arg(url.url()));
+  p.setContentMimeTypes(QStringList(KCalCore::Todo::todoMimeType()));
+  collections << p;
 
   Collection b;
   b.setParentCollection(root);
@@ -722,6 +737,87 @@ QHash<QString, QString> SugarCrmResource::bookingSoap(const Akonadi::Item &item)
         // Just to avoid warnings
         break;
     }
+  return soapItem;
+}
+
+Item SugarCrmResource::projectPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item)
+{
+  KCalCore::Todo::Ptr project(new KCalCore::Todo);
+  project->setUid(soapItem["id"]);
+  project->setSummary(soapItem["name"]);
+  project->setDescription(soapItem["description"]);
+  project->setCreated(KDateTime::fromString(soapItem["date_entered"], KDateTime::ISODate));
+  if (!soapItem["date_starting"].isEmpty())
+  {
+    project->setDtStart(KDateTime::fromString(soapItem["date_starting"], KDateTime::ISODate));
+    project->setDateTime(KDateTime::fromString(soapItem["date_starting"], KDateTime::ISODate), KCalCore::IncidenceBase::RoleDisplayStart);
+  }
+  if (!soapItem["date_ending"].isEmpty())
+  {
+    // FIXME: It seems that it only gets date but not time
+    project->setDtDue(KDateTime::fromString(soapItem["date_ending"], KDateTime::ISODate));
+    project->setDateTime(KDateTime::fromString(soapItem["date_ending"], KDateTime::ISODate), KCalCore::IncidenceBase::RoleDisplayEnd);
+  }
+
+  // TODO percentcomplete
+  if (!soapItem["project_phase"].isEmpty())
+  {
+    if (soapItem["project_phase"] == "Active - Starting Soon")
+      project->setStatus(KCalCore::Incidence::StatusConfirmed);
+    else if (soapItem["project_phase"] == "Active - In Progress")
+      project->setStatus(KCalCore::Incidence::StatusInProcess);
+    else if (soapItem["project_phase"] == "Closed - Complete")
+      project->setStatus(KCalCore::Incidence::StatusCompleted);
+    else if (soapItem["project_phase"] == "Closed - Terminated")
+      project->setStatus(KCalCore::Incidence::StatusCompleted);
+    else
+      project->setCustomStatus(soapItem["project_phase"]);
+    project->setCustomProperty("SugarCRM", "X-Status", soapItem["project_phase"]);
+  }
+
+  project->setPercentComplete(soapItem["percent_complete"].toInt());
+
+  Item newItem(item);
+  newItem.setPayload<KCalCore::Todo::Ptr>(project);
+  return newItem;
+}
+
+QHash<QString, QString> SugarCrmResource::projectSoap(const Akonadi::Item &item)
+{
+  const KCalCore::Todo::Ptr &payload = item.payload<KCalCore::Todo::Ptr>();
+  QHash<QString, QString> soapItem;
+
+  soapItem["name"] = payload->summary();
+  soapItem["description"] = payload->description();
+  soapItem["date_entered"] = payload->created().toString(KDateTime::ISODate);
+  if (payload->hasStartDate())
+    soapItem["date_starting"] = payload->dtStart().toString(KDateTime::ISODate);
+  if (payload->hasDueDate())
+    soapItem["date_ending"] = payload->dtDue().toString(KDateTime::ISODate);
+  soapItem["percent_complete"] = QString::number(payload->percentComplete());
+
+  if (!payload->customProperty("SugarCRM", "X-Status").isEmpty())
+    soapItem["project_phase"] = payload->customProperty("SugarCRM", "X-Status");
+  else
+    switch (payload->status())
+    {
+      case KCalCore::Incidence::StatusConfirmed:
+        soapItem["project_phase"] = "Active - Starting Soon";
+        break;
+      case KCalCore::Incidence::StatusInProcess:
+        soapItem["project_phase"] = "Active - In Progress";
+        break;
+      case KCalCore::Incidence::StatusCompleted:
+        soapItem["project_phase"] = "Closed - Complete";
+        break;
+      case KCalCore::Incidence::StatusX:
+        soapItem["project_phase"] = payload->customStatus();
+        break;
+      default:
+        // Just to avoid warnings
+        break;
+    }
+
   return soapItem;
 }
 
