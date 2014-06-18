@@ -132,6 +132,65 @@ void SugarSoap::getLoginResponse()
   }
 }
 
+QStringList SugarSoap::getModules()
+{
+  QStringList modules;
+
+  // TODO move this check to login method
+  // Check if we are logged in1
+  if ((session_id.isNull()) || (session_id.isEmpty()))
+  {
+    this->login(Settings::self()->username(), Settings::self()->password());
+    if ((session_id.isEmpty()) || (session_id.isNull())) // login failed
+      return modules;
+  }
+
+  QtSoapMessage soap_request;
+  soap_request.setMethod("get_available_modules");
+  soap_request.addMethodArgument("session", "", session_id);
+  QEventLoop loop;
+  connect(&soap_http, SIGNAL(responseReady()), &loop, SLOT(quit()));
+  soap_http.setHost(url.host(),
+                    url.toString().startsWith("https://")? true : false,
+                    url.toString().startsWith("https://")? url.port(443) : url.port(80));
+  soap_http.setAction(url.toString());
+  soap_http.submitRequest(soap_request, url.path() == ""? "/" : url.path());
+  loop.exec();
+  disconnect(&soap_http, SIGNAL(responseReady()), &loop, SLOT(quit()));
+
+  // Get response
+  const QtSoapMessage &message = soap_http.getResponse();
+
+  // Check if everything went right..
+  if (message.isFault())
+  {
+    qDebug("Error: %s", message.faultString().value().toString().toLatin1().constData());
+    return modules;
+  }
+  else
+  {
+    // .. then get returned data
+    const QtSoapType &response = message.method()["return"];
+
+    // Was request rejected with error?
+    if (response["error"]["number"].value().toString() != "0")
+    {
+      qDebug("%s", response["error"]["name"].value().toString().toLatin1().constData());
+      qDebug("%s", response["error"]["description"].value().toString().toLatin1().constData());
+      return modules;
+    }
+    else
+    {
+      for (int i=0; i<response["modules"].count(); i++)
+      {
+        if (SugarCrmResource::Modules.keys().contains(response["modules"][i].value().toString()))
+          modules << response["modules"][i].value().toString();
+      }
+    }
+    return modules;
+  }
+}
+
 /*!
  * Requests an entry list
  * \param[in] module Module you want to get data from

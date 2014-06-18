@@ -241,48 +241,19 @@ void SugarCrmResource::retrieveCollections()
   Collection::List collections;
   collections << root;
 
-  // Add a collection for each module queried
-  Collection c;
-  c.setParentCollection(root);
-  c.setRemoteId("Contacts");
-  c.setName(i18n("Contacts"));
-  c.setContentMimeTypes(QStringList(KABC::Addressee::mimeType()));
-  collections << c;
+  soap = new SugarSoap(Settings::self()->url().url());
+  QStringList modules = soap->getModules();
 
-  Collection l;
-  l.setParentCollection(root);
-  l.setRemoteId("Leads");
-  l.setName(i18n("Leads"));
-  l.setContentMimeTypes(QStringList(KABC::Addressee::mimeType()));
-  collections << l;
-
-  Collection t;
-  t.setParentCollection(root);
-  t.setRemoteId("Tasks");
-  t.setName(i18n("Tasks"));
-  t.setContentMimeTypes(QStringList(KCalCore::Todo::todoMimeType()));
-  collections << t;
-
-  Collection c2;
-  c2.setParentCollection(root);
-  c2.setRemoteId("Cases");
-  c2.setName(i18n("Cases"));
-  c2.setContentMimeTypes(QStringList(KCalCore::Todo::todoMimeType()));
-  collections << c2;
-
-  Collection p;
-  p.setParentCollection(root);
-  p.setRemoteId("Project");
-  p.setName(i18n("Projects"));
-  p.setContentMimeTypes(QStringList(KCalCore::Todo::todoMimeType()));
-  collections << p;
-
-  Collection b;
-  b.setParentCollection(root);
-  b.setRemoteId("Booking");
-  b.setName(i18n("Booking"));
-  b.setContentMimeTypes(QStringList(KCalCore::Event::eventMimeType()));
-  collections << b;
+  // Add a collection for each available module
+  foreach (QString module, modules)
+  {
+    Collection c;
+    c.setParentCollection(root);
+    c.setRemoteId(module);
+    c.setName(i18n(module.toUtf8().constData()));
+    c.setContentMimeTypes(Modules[module].mimes);
+    collections << c;
+  }
 
   collectionsRetrieved(collections);
   // TODO configure interval

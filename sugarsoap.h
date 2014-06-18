@@ -16,6 +16,7 @@ class SugarSoap : public QObject
   public:
     SugarSoap(QString strurl, QString sid = "");
     QString login(const QString &user, const QString &pass);
+    QStringList getModules();
     QVector<QMap<QString, QString> >* getEntries(QString module, QDateTime *last_sync = NULL);
     QHash<QString, QString>* getEntry(QString module, const QString& id);
     bool editEntry(QString module, QHash< QString, QString > entry, QString* id);
