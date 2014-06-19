@@ -20,7 +20,6 @@ class SugarSoap : public QObject
     QVector<QMap<QString, QString> >* getEntries(QString module, QDateTime *last_sync = NULL);
     QHash<QString, QString>* getEntry(QString module, const QString& id);
     bool editEntry(QString module, QHash< QString, QString > entry, QString* id);
-    QDateTime *last_sync;
 
   Q_SIGNALS:
     void loggedIn();
@@ -30,7 +29,7 @@ class SugarSoap : public QObject
   private Q_SLOTS:
     void getLoginResponse();
     void entriesReady(QObject *properties);
-    void entryReady(QString module);
+    void entryReady(QObject *properties);
     void getResponse(QObject *properties);
 
   private:
@@ -38,7 +37,6 @@ class SugarSoap : public QObject
     QtSoapHttpTransport soap_http;
     QString session_id;
     QUrl url;
-    QHash<QString, QString>* entry;
     QSignalMapper mapper;
 };
 

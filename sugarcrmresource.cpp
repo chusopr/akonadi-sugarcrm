@@ -141,6 +141,7 @@ void SugarCrmResource::resourceCollectionsRetrieved(KJob *job)
     if (c.hasAttribute<DateTimeAttribute>())
       rc->last_sync = new QDateTime(c.attribute<DateTimeAttribute>()->value());
     resource_collections[c.remoteId()] = *rc;
+    delete rc;
   }
   if (resource_collections.count() > 0)
     QTimer::singleShot(Settings::self()->updateInterval()*1000, this, SLOT(update()));
@@ -177,6 +178,7 @@ void SugarCrmResource::update()
         loop.exec();
         if ((itemJob->error() == 0) && (itemJob->items().count() == 1))
           item = itemJob->items().first();
+        delete itemJob;
       }
       if (entry["deleted"] == "1")
       {
@@ -187,12 +189,14 @@ void SugarCrmResource::update()
         if (itemJob->error() != 0)
           // TODO If it can't find item, error should probably be ignored.
           qDebug("Unable to delete item %s: %s", entry["id"].toLatin1().constData(), itemJob->errorString().toLatin1().constData());
+        delete itemJob;
       }
       else if (QDateTime::fromString(entry["date_entered"], Qt::ISODate) <= *(rc.value().last_sync))
       {
         // Modification
         QHash<QString, QString> *soapItem = soap.getEntry(rc.key(), entry["id"]);
         Item newItem = (this->*SugarCrmResource::Modules[rc.key()].payload_function)(*soapItem, item);
+        delete soapItem;
         newItem.setRemoteId(item.remoteId());
         newItem.setParentCollection(item.parentCollection());
         ItemModifyJob *itemJob = new ItemModifyJob(newItem);
@@ -201,12 +205,14 @@ void SugarCrmResource::update()
         loop.exec();
         if (itemJob->error() != 0)
           qDebug("Unable to modify item %s: %s", entry["id"].toLatin1().constData(), itemJob->errorString().toLatin1().constData());
+        delete itemJob;
       }
       else
       {
         // Addition
         QHash<QString, QString> *soapItem = soap.getEntry(rc.key(), entry["id"]);
         Item newItem = (this->*SugarCrmResource::Modules[rc.key()].payload_function)(*soapItem, item);
+        delete soapItem;
         newItem.setRemoteId(item.remoteId());
         newItem.setParentCollection(item.parentCollection());
         ItemCreateJob *itemJob = new ItemCreateJob(newItem, c, this);
@@ -215,11 +221,14 @@ void SugarCrmResource::update()
         loop.exec();
         if (itemJob->error() != 0)
           qDebug("Unable to add item %s: %s", entry["id"].toLatin1().constData(), itemJob->errorString().toLatin1().constData());
+        delete itemJob;
       }
       last_sync = new QDateTime(QDateTime::fromString(entry["date_modified"], Qt::ISODate));
     }
+    delete entries;
     if (*last_sync > *(rc.value().last_sync))
     {
+      delete resource_collections[rc.key()].last_sync;
       resource_collections[rc.key()].last_sync = last_sync;
       updateCollectionSyncTime(Collection(rc.value().id), *last_sync);
     }
@@ -300,6 +309,7 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
     last_sync = (*soapItem)["date_modified"];
     items << item;
   }
+  delete soapItems;
 
   itemsRetrieved( items );
   resource_collection* rc = new resource_collection;
@@ -896,6 +906,7 @@ void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Coll
     }
     changeCommitted(newItem);
   }
+  delete id;
 }
 
 void SugarCrmResource::itemChanged( const Akonadi::Item &item, const QSet<QByteArray> &parts )
@@ -903,7 +914,7 @@ void SugarCrmResource::itemChanged( const Akonadi::Item &item, const QSet<QByteA
   Q_UNUSED(parts);
 
   QString mod = item.remoteId().replace(QRegExp(".*@"), "");
-  QString remoteId = item.remoteId().replace(QRegExp("@" + mod + "$"), "");
+  QString *remoteId = new QString(item.remoteId().replace(QRegExp("@" + mod + "$"), ""));
   // Check if the module we got is valid
   if (!SugarCrmResource::Modules.contains(mod))
     return;
@@ -913,15 +924,16 @@ void SugarCrmResource::itemChanged( const Akonadi::Item &item, const QSet<QByteA
   if (soap.editEntry(
     mod,
     (this->*SugarCrmResource::Modules[mod].soap_function)(item),
-    new QString(remoteId)
+    remoteId
   ))
     changeCommitted(Item(item));
+  delete remoteId;
 }
 
 void SugarCrmResource::itemRemoved( const Akonadi::Item &item )
 {
   QString mod = item.remoteId().replace(QRegExp(".*@"), "");
-  QString remoteId = item.remoteId().replace(QRegExp("@" + mod + "$"), "");
+  QString *remoteId = new QString(item.remoteId().replace(QRegExp("@" + mod + "$"), ""));
   // Check if the module we got is valid
   if (!SugarCrmResource::Modules.contains(mod))
     return;
@@ -933,9 +945,10 @@ void SugarCrmResource::itemRemoved( const Akonadi::Item &item )
   if (soap.editEntry(
     mod,
     soapItem,
-    new QString(remoteId)
+    remoteId
   ))
     changeCommitted(Item(item));
+  delete remoteId;
 }
 
 AKONADI_RESOURCE_MAIN( SugarCrmResource );

@@ -13,11 +13,13 @@
 #include <iostream>
 #include <QDomElement>
 
-// This typedef is not used, it is needed just because compiler macros
+// These typedefs are not used, they are needed just because compiler macros
 // can't use arguments containing commas...
 typedef QVector<QMap<QString, QString > > QVectorQMapQStringQString;
+typedef QHash<QString, QString> QHashQStringQString;
 // ...here
 Q_DECLARE_METATYPE(QVectorQMapQStringQString);
+Q_DECLARE_METATYPE(QHashQStringQString);
 
 /*!
  * \class SugarSoap
@@ -215,8 +217,6 @@ QVector<QMap<QString, QString > >* SugarSoap::getEntries(QString module, QDateTi
       return new QVector<QMap<QString, QString> > (entries);
   }
 
-  this->last_sync = last_sync;
-
   QObject *properties = new QObject(this);
   properties->setProperty("module", module);
   properties->setProperty("entries", QVariant::fromValue<QVector<QMap<QString, QString > > >(entries));
@@ -224,13 +224,17 @@ QVector<QMap<QString, QString > >* SugarSoap::getEntries(QString module, QDateTi
   connect(this, SIGNAL(allEntries()), &loop, SLOT(quit()));
   this->requestEntries(properties, 0, last_sync);
   loop.exec();
-  return new QVector<QMap<QString, QString> > (properties->property("entries").value<QVector<QMap<QString, QString > > >());
+  entries = properties->property("entries").value<QVector<QMap<QString, QString > > >();
+  delete properties;
+  return new QVector<QMap<QString, QString> > (entries);
 }
 
 void SugarSoap::requestEntries(QObject *properties, unsigned int offset, QDateTime *last_sync)
 {
   // Build the request
   QString module = properties->property("module").toString();
+  if (last_sync != NULL)
+    properties->setProperty("last_sync", *last_sync);
   QtSoapMessage soap_request;
   soap_request.setMethod("get_entry_list");
 
@@ -291,13 +295,11 @@ void SugarSoap::requestEntries(QObject *properties, unsigned int offset, QDateTi
  */
 QHash<QString, QString>* SugarSoap::getEntry(QString module, const QString &id)
 {
-  entry = new QHash<QString, QString>;
   // Check that the request module is one of the ones we allow
   if (!SugarCrmResource::Modules.contains(module))
   {
     qDebug("Invalid module requested");
-    // TODO emit something?
-    return entry;
+    return new QHash<QString, QString>();
   }
 
   // TODO move this check to login method
@@ -306,7 +308,7 @@ QHash<QString, QString>* SugarSoap::getEntry(QString module, const QString &id)
   {
     this->login(Settings::self()->username(), Settings::self()->password());
     if ((session_id.isEmpty()) || (session_id.isNull())) // login failed
-      return entry;
+      return new QHash<QString, QString>();
   }
 
   // Build the request
@@ -338,9 +340,11 @@ QHash<QString, QString>* SugarSoap::getEntry(QString module, const QString &id)
    * Connects responseReady() event in QtSoapHttpTransport to
    * getResponse() method in this
    */
+  QObject *properties = new QObject;
+  properties->setProperty("module", module);
   connect(&soap_http, SIGNAL(responseReady()), &mapper, SLOT(map()));
-  mapper.setMapping(&soap_http, module);
-  connect(&mapper, SIGNAL(mapped(QString)), this, SLOT(entryReady(QString)));
+  mapper.setMapping(&soap_http, properties);
+  connect(&mapper, SIGNAL(mapped(QObject*)), this, SLOT(entryReady(QObject*)));
   QEventLoop loop;
   connect(&soap_http, SIGNAL(responseReady()), &loop, SLOT(quit()));
   // Finally, send the request
@@ -350,8 +354,12 @@ QHash<QString, QString>* SugarSoap::getEntry(QString module, const QString &id)
   soap_http.setAction(url.toString());
   soap_http.submitRequest(soap_request, url.path() == ""? "/" : url.path());
   loop.exec();
-  disconnect(&soap_http, SIGNAL(responseReady()), this, SLOT(entryReady()));
-  disconnect(&soap_http, SIGNAL(responseReady()), &loop, SLOT(quit()));
+  QHash<QString, QString> *entry;
+  if (properties->property("entry").isValid())
+    entry = new QHash<QString, QString>(properties->property("entry").value<QHash<QString, QString> >());
+  else
+    entry = new QHash<QString, QString>();
+  delete properties;
   return entry;
 }
 
@@ -470,6 +478,10 @@ void SugarSoap::getResponse(QObject *properties)
 void SugarSoap::entriesReady(QObject* properties)
 {
   QVector<QMap<QString, QString > > entries = properties->property("entries").value<QVector<QMap<QString, QString > > >();
+  QDateTime *last_sync = NULL;
+  if (properties->property("last_sync").isValid())
+    last_sync = new QDateTime(properties->property("last_sync").toDateTime());
+
   // Get response
   const QtSoapMessage &message = soap_http.getResponse();
 
@@ -479,7 +491,7 @@ void SugarSoap::entriesReady(QObject* properties)
   if (message.isFault())
   {
     qDebug("Error: %s", message.faultString().value().toString().toLatin1().constData());
-    // TODO emit something?
+    delete last_sync;
     return;
   }
   else
@@ -492,7 +504,7 @@ void SugarSoap::entriesReady(QObject* properties)
     {
       qDebug("%s", response["error"]["name"].value().toString().toLatin1().constData());
       qDebug("%s", response["error"]["description"].value().toString().toLatin1().constData());
-      // TODO emit something?
+      delete last_sync;
       return;
     }
     else
@@ -512,10 +524,13 @@ void SugarSoap::entriesReady(QObject* properties)
         emit allEntries();
     }
   }
+  if (last_sync != NULL)
+    delete last_sync;
 }
 
-void SugarSoap::entryReady(QString module)
+void SugarSoap::entryReady(QObject* properties)
 {
+  QString module = properties->property("module").toString();
   // Get response
   const QtSoapMessage &message = soap_http.getResponse();
 
@@ -525,7 +540,6 @@ void SugarSoap::entryReady(QString module)
   if (message.isFault())
   {
     qDebug("Error: %s", message.faultString().value().toString().toLatin1().constData());
-    // TODO emit something?
     return;
   }
   else
@@ -538,11 +552,11 @@ void SugarSoap::entryReady(QString module)
     {
       qDebug("%s", response["error"]["name"].value().toString().toLatin1().constData());
       qDebug("%s", response["error"]["description"].value().toString().toLatin1().constData());
-      // TODO emit something?
       return;
     }
     else
     {
+      QHash<QString, QString> entry;
       // Print returned data
       QStringList fields = SugarCrmResource::Modules[module].fields;
       const QtSoapStruct *soapEntry = (QtSoapStruct*)&(response["entry_list"][0]);
@@ -551,8 +565,9 @@ void SugarSoap::entryReady(QString module)
       {
         const QtSoapStruct *field = (QtSoapStruct*)&((*soapEntry)["name_value_list"][j]);
         if (fields.contains((*field)["name"].value().toString()))
-          (*entry)[(*field)["name"].value().toString()] = (*field)["value"].value().toString();
+          entry[(*field)["name"].value().toString()] = (*field)["value"].value().toString();
       }
+      properties->setProperty("entry", QVariant::fromValue<QHash<QString, QString> >(entry));
     }
   }
 }
