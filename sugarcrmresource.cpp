@@ -149,13 +149,13 @@ void SugarCrmResource::resourceCollectionsRetrieved(KJob *job)
 void SugarCrmResource::update()
 {
   QMapIterator<QString, resource_collection> rc(resource_collections);
+  SugarSoap soap(Settings::self()->url().url());
   while (rc.hasNext())
   {
     rc.next();
     if (rc.value().last_sync == NULL) continue;
     QDateTime *last_sync = rc.value().last_sync;
-    soap = new SugarSoap(Settings::self()->url().url());
-    QVector <QMap<QString, QString> > *entries = soap->getEntries(rc.key(), rc.value().last_sync);
+    QVector <QMap<QString, QString> > *entries = soap.getEntries(rc.key(), rc.value().last_sync);
     int num_entries = entries->count();
     for (
       int i = 0;
@@ -191,7 +191,7 @@ void SugarCrmResource::update()
       else if (QDateTime::fromString(entry["date_entered"], Qt::ISODate) <= *(rc.value().last_sync))
       {
         // Modification
-        QHash<QString, QString> *soapItem = soap->getEntry(rc.key(), entry["id"]);
+        QHash<QString, QString> *soapItem = soap.getEntry(rc.key(), entry["id"]);
         Item newItem = (this->*SugarCrmResource::Modules[rc.key()].payload_function)(*soapItem, item);
         newItem.setRemoteId(item.remoteId());
         newItem.setParentCollection(item.parentCollection());
@@ -205,7 +205,7 @@ void SugarCrmResource::update()
       else
       {
         // Addition
-        QHash<QString, QString> *soapItem = soap->getEntry(rc.key(), entry["id"]);
+        QHash<QString, QString> *soapItem = soap.getEntry(rc.key(), entry["id"]);
         Item newItem = (this->*SugarCrmResource::Modules[rc.key()].payload_function)(*soapItem, item);
         newItem.setRemoteId(item.remoteId());
         newItem.setParentCollection(item.parentCollection());
@@ -246,8 +246,8 @@ void SugarCrmResource::retrieveCollections()
   Collection::List collections;
   collections << root;
 
-  soap = new SugarSoap(Settings::self()->url().url());
-  QStringList modules = soap->getModules();
+  SugarSoap soap(Settings::self()->url().url());
+  QStringList modules = soap.getModules();
 
   // Add a collection for each available module
   foreach (QString module, modules)
@@ -282,8 +282,8 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
     return;
 
   // Request items to SugarSoap
-  soap = new SugarSoap(Settings::self()->url().url());
-  QVector <QMap<QString, QString> > *soapItems = soap->getEntries(mod);
+  SugarSoap soap(Settings::self()->url().url());
+  QVector <QMap<QString, QString> > *soapItems = soap.getEntries(mod);
 
   // At this step, we only need their remoteIds.
   Item::List items;
@@ -342,10 +342,10 @@ bool SugarCrmResource::retrieveItem( const Akonadi::Item &item, const QSet<QByte
   if (!SugarCrmResource::Modules.contains(mod))
     return false;
 
-  soap = new SugarSoap(Settings::self()->url().url());
+  SugarSoap soap(Settings::self()->url().url());
   // TODO check returned value
   // Call function pointer to the function that returns the appropi
-  QHash<QString, QString> *soapItem = soap->getEntry(mod, remoteId);
+  QHash<QString, QString> *soapItem = soap.getEntry(mod, remoteId);
   Item newItem = (this->*SugarCrmResource::Modules[mod].payload_function)(*soapItem, item);
   delete soapItem;
   newItem.setRemoteId(item.remoteId());
@@ -836,9 +836,9 @@ void SugarCrmResource::configure(const WId windowId)
     if (configDlg.exec() == QDialog::Rejected)
       break;
     // Test if supplied data is correct
-    soap = new SugarSoap(configDlg.url());
+    SugarSoap soap(configDlg.url());
     // TODO timeout
-    Settings::self()->setSessionId(soap->login(configDlg.username(), configDlg.password()));
+    Settings::self()->setSessionId(soap.login(configDlg.username(), configDlg.password()));
     if (Settings::self()->sessionId().isEmpty())
       QMessageBox::critical(&configDlg, "Invalid login", "Cannot login with provided data");
   } while (Settings::self()->sessionId().isEmpty());
@@ -874,8 +874,8 @@ void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Coll
 
   QString *id = new QString();
 
-  soap = new SugarSoap(Settings::self()->url().url());
-  if (soap->editEntry(
+  SugarSoap soap(Settings::self()->url().url());
+  if (soap.editEntry(
     mod,
     (this->*SugarCrmResource::Modules[mod].soap_function)(item),
     id
@@ -887,7 +887,7 @@ void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Coll
     if (mod == "Cases")
     {
       // Refetch payload to get case name
-      QHash<QString, QString> *soapItem = soap->getEntry(mod, *id);
+      QHash<QString, QString> *soapItem = soap.getEntry(mod, *id);
       Item tmpItem = taskPayload(*soapItem, newItem);
       delete soapItem;
       KCalCore::Todo::Ptr payload = tmpItem.payload<KCalCore::Todo::Ptr>();
@@ -908,9 +908,9 @@ void SugarCrmResource::itemChanged( const Akonadi::Item &item, const QSet<QByteA
   if (!SugarCrmResource::Modules.contains(mod))
     return;
 
-  soap = new SugarSoap(Settings::self()->url().url());
+  SugarSoap soap(Settings::self()->url().url());
 
-  if (soap->editEntry(
+  if (soap.editEntry(
     mod,
     (this->*SugarCrmResource::Modules[mod].soap_function)(item),
     new QString(remoteId)
@@ -925,12 +925,12 @@ void SugarCrmResource::itemRemoved( const Akonadi::Item &item )
   // Check if the module we got is valid
   if (!SugarCrmResource::Modules.contains(mod))
     return;
-  soap = new SugarSoap(Settings::self()->url().url());
+  SugarSoap soap(Settings::self()->url().url());
 
   QHash<QString, QString> soapItem;
   soapItem["deleted"] = "1";
 
-  if (soap->editEntry(
+  if (soap.editEntry(
     mod,
     soapItem,
     new QString(remoteId)

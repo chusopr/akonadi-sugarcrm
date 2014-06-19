@@ -45,8 +45,6 @@ class SugarCrmResource : public Akonadi::ResourceBase,
     QHash<QString, QString> bookingSoap(const Akonadi::Item &item);
     QHash<QString, QString> projectSoap(const Akonadi::Item &item);
 
-    SugarSoap *soap;
-
   private:
     QMap<QString, KABC::PhoneNumber::Type> phones;
     QMap<QString, resource_collection> resource_collections;
