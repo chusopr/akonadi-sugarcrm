@@ -180,19 +180,22 @@ void SugarCrmResource::update()
       Item item(Modules[rc.key()].mimes.first());
       item.setRemoteId(entry["id"] + "@" + rc.key());
       Collection c(rc.value().id);
-      // To delete and modify, we first need to fetch Akonadi item
-      if ((entry["deleted"] == "1") || (QDateTime::fromString(entry["date_entered"], Qt::ISODate) <= *(rc.value().last_sync)))
+
+      // We need to check first if item actually exists in Akonadi
+      ItemFetchJob *itemJob = new ItemFetchJob(item);
+      bool itemFound = false;
+      QEventLoop loop;
+      connect(itemJob, SIGNAL(finished(KJob*)), &loop, SLOT(quit()));
+      itemJob->setCollection(c);
+      loop.exec();
+      if ((itemJob->error() == 0) && (itemJob->items().count() == 1))
       {
-        ItemFetchJob *itemJob = new ItemFetchJob(item);
-        QEventLoop loop;
-        connect(itemJob, SIGNAL(finished(KJob*)), &loop, SLOT(quit()));
-        itemJob->setCollection(c);
-        loop.exec();
-        if ((itemJob->error() == 0) && (itemJob->items().count() == 1))
-          item = itemJob->items().first();
-        delete itemJob;
+        itemFound = true;
+        item = itemJob->items().first();
       }
-      if (entry["deleted"] == "1")
+      delete itemJob;
+
+      if ((entry["deleted"] == "1") && (itemFound))
       {
         ItemDeleteJob *itemJob = new ItemDeleteJob(item);
         QEventLoop loop;
@@ -205,35 +208,43 @@ void SugarCrmResource::update()
       }
       else if (QDateTime::fromString(entry["date_entered"], Qt::ISODate) <= *(rc.value().last_sync))
       {
-        // Modification
-        QHash<QString, QString> *soapItem = soap.getEntry(rc.key(), entry["id"]);
-        Item newItem = (this->*SugarCrmResource::Modules[rc.key()].payload_function)(*soapItem, item);
-        delete soapItem;
-        newItem.setRemoteId(item.remoteId());
-        newItem.setParentCollection(item.parentCollection());
-        ItemModifyJob *itemJob = new ItemModifyJob(newItem);
-        QEventLoop loop;
-        connect(itemJob, SIGNAL(finished(KJob*)), &loop, SLOT(quit()));
-        loop.exec();
-        if (itemJob->error() != 0)
-          qDebug("Unable to modify item %s: %s", entry["id"].toLatin1().constData(), itemJob->errorString().toLatin1().constData());
-        delete itemJob;
+        if (itemFound)
+        {
+          // Modification
+          QHash<QString, QString> *soapItem = soap.getEntry(rc.key(), entry["id"]);
+          Item newItem = (this->*SugarCrmResource::Modules[rc.key()].payload_function)(*soapItem, item);
+          delete soapItem;
+          newItem.setRemoteId(item.remoteId());
+          newItem.setParentCollection(item.parentCollection());
+          ItemModifyJob *itemJob = new ItemModifyJob(newItem);
+          QEventLoop loop;
+          connect(itemJob, SIGNAL(finished(KJob*)), &loop, SLOT(quit()));
+          loop.exec();
+          if (itemJob->error() != 0)
+            qDebug("Unable to modify item %s: %s", entry["id"].toLatin1().constData(), itemJob->errorString().toLatin1().constData());
+          delete itemJob;
+        }
       }
       else
       {
-        // Addition
-        QHash<QString, QString> *soapItem = soap.getEntry(rc.key(), entry["id"]);
-        Item newItem = (this->*SugarCrmResource::Modules[rc.key()].payload_function)(*soapItem, item);
-        delete soapItem;
-        newItem.setRemoteId(item.remoteId());
-        newItem.setParentCollection(item.parentCollection());
-        ItemCreateJob *itemJob = new ItemCreateJob(newItem, c, this);
-        QEventLoop loop;
-        connect(itemJob, SIGNAL(finished(KJob*)), &loop, SLOT(quit()));
-        loop.exec();
-        if (itemJob->error() != 0)
-          qDebug("Unable to add item %s: %s", entry["id"].toLatin1().constData(), itemJob->errorString().toLatin1().constData());
-        delete itemJob;
+        // The item may be already in Akonadi if SugarCRM is telling us
+        // about a item that has been created by Akonadi
+        if (!itemFound)
+        {
+          // Addition
+          QHash<QString, QString> *soapItem = soap.getEntry(rc.key(), entry["id"]);
+          Item newItem = (this->*SugarCrmResource::Modules[rc.key()].payload_function)(*soapItem, item);
+          delete soapItem;
+          newItem.setRemoteId(item.remoteId());
+          newItem.setParentCollection(item.parentCollection());
+          ItemCreateJob *itemJob = new ItemCreateJob(newItem, c, this);
+          QEventLoop loop;
+          connect(itemJob, SIGNAL(finished(KJob*)), &loop, SLOT(quit()));
+          loop.exec();
+          if (itemJob->error() != 0)
+            qDebug("Unable to add item %s: %s", entry["id"].toLatin1().constData(), itemJob->errorString().toLatin1().constData());
+          delete itemJob;
+        }
       }
       last_sync = new QDateTime(QDateTime::fromString(entry["date_modified"], Qt::ISODate));
     }
