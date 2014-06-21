@@ -151,7 +151,7 @@ QStringList SugarSoap::getModules()
   QStringList modules;
 
   // TODO move this check to login method
-  // Check if we are logged in1
+  // Check if we are logged in
   if ((session_id.isNull()) || (session_id.isEmpty()))
   {
     this->login(Settings::self()->username(), Settings::self()->password());
@@ -216,7 +216,6 @@ QVector<QMap<QString, QString > >* SugarSoap::getEntries(QString module, QDateTi
   if (!SugarCrmResource::Modules.contains(module))
   {
     qDebug("Invalid module requested");
-    // TODO emit something?
     return new QVector<QMap<QString, QString> > (entries);
   }
 
@@ -267,7 +266,6 @@ void SugarSoap::requestEntries(QObject *properties, unsigned int offset, QDateTi
   select_fields->insert(2, new QtSoapSimpleType(QtSoapQName("date_modified"), "date_modified"));
   select_fields->insert(3, new QtSoapSimpleType(QtSoapQName("deleted"), "deleted"));
 
-  // FIXME: probably only id is required
   soap_request.addMethodArgument("session", "", session_id);
   soap_request.addMethodArgument("module_name", "", QString(module));
   // TODO make this configurable
@@ -381,7 +379,6 @@ bool SugarSoap::editEntry(QString module, QHash< QString, QString > entry, QStri
   if (!SugarCrmResource::Modules.contains(module))
   {
     qDebug("Invalid module requested");
-    // TODO emit something?
     return false;
   }
 

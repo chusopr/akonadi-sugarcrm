@@ -293,7 +293,6 @@ void SugarCrmResource::retrieveCollections()
   }
 
   collectionsRetrieved(collections);
-  // TODO configure interval
   QTimer::singleShot(Settings::self()->updateInterval()*1000, this, SLOT(update()));
 }
 
@@ -547,7 +546,6 @@ Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, cons
   }
   if (!soapItem["date_due"].isEmpty())
   {
-    // FIXME: It seems that it only gets date but not time
     event->setDtDue(KDateTime::fromString(soapItem["date_due"], KDateTime::ISODate));
     event->setDateTime(KDateTime::fromString(soapItem["date_due"], KDateTime::ISODate), KCalCore::IncidenceBase::RoleDisplayEnd);
   }
@@ -666,7 +664,6 @@ Item SugarCrmResource::bookingPayload(const QHash<QString, QString> &soapItem, c
   }
   if (!soapItem["quantity"].isEmpty())
   {
-    // FIXME: It seems that it only gets date but not time
     event->setDuration(soapItem["quantity"].toUInt()*60);
     event->setDtEnd(KDateTime::fromString(soapItem["date_start"], KDateTime::ISODate).addSecs(soapItem["quantity"].toUInt()*60));
     event->setDateTime(KDateTime::fromString(soapItem["date_start"], KDateTime::ISODate).addSecs(soapItem["quantity"].toUInt()*60), KCalCore::IncidenceBase::RoleDisplayEnd);
@@ -765,12 +762,10 @@ Item SugarCrmResource::projectPayload(const QHash<QString, QString> &soapItem, c
   }
   if (!soapItem["date_ending"].isEmpty())
   {
-    // FIXME: It seems that it only gets date but not time
     project->setDtDue(KDateTime::fromString(soapItem["date_ending"], KDateTime::ISODate));
     project->setDateTime(KDateTime::fromString(soapItem["date_ending"], KDateTime::ISODate), KCalCore::IncidenceBase::RoleDisplayEnd);
   }
 
-  // TODO percentcomplete
   if (!soapItem["project_phase"].isEmpty())
   {
     if (soapItem["project_phase"] == "Active - Starting Soon")
@@ -834,8 +829,6 @@ QHash<QString, QString> SugarCrmResource::projectSoap(const Akonadi::Item &item)
 
 void SugarCrmResource::aboutToQuit()
 {
-  // TODO: any cleanup you need to do while there is still an active
-  // event loop. The resource will terminate after this method returns
 }
 
 /*!
@@ -914,7 +907,6 @@ void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Coll
     id
   ))
   {
-    // FIXME: remoteId != uid. Is it right?
     Item newItem(item);
     newItem.setRemoteId(*id + "@" + mod);
     if (mod == "Cases")
