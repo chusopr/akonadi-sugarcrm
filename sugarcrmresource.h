@@ -39,10 +39,8 @@ class SugarCrmResource : public Akonadi::ResourceBase,
     ~SugarCrmResource();
     static QHash<QString, module> Modules;
 
-  public Q_SLOTS:
+  private Q_SLOTS:
     virtual void configure(const WId windowId);
-
-  protected Q_SLOTS:
     void retrieveCollections();
     void retrieveItems(const Akonadi::Collection &col);
     bool retrieveItem(const Akonadi::Item &item, const QSet<QByteArray> &parts);
@@ -50,7 +48,7 @@ class SugarCrmResource : public Akonadi::ResourceBase,
     void finishUpdateCollectionSyncTime(KJob *job);
     void update();
 
-  protected:
+  private:
     virtual void aboutToQuit();
     virtual void itemAdded(const Akonadi::Item &item, const Akonadi::Collection &collection);
     virtual void itemChanged(const Akonadi::Item &item, const QSet<QByteArray> &parts);
@@ -64,8 +62,6 @@ class SugarCrmResource : public Akonadi::ResourceBase,
     QHash<QString, QString> taskSoap(const Akonadi::Item &item);
     QHash<QString, QString> bookingSoap(const Akonadi::Item &item);
     QHash<QString, QString> projectSoap(const Akonadi::Item &item);
-
-  private:
     QMap<QString, KABC::PhoneNumber::Type> phones;
     QMap<QString, resource_collection> resource_collections;
     void updateCollectionSyncTime(Akonadi::Collection collection, QDateTime time);
