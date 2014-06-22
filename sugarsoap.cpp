@@ -40,8 +40,8 @@ Q_DECLARE_METATYPE(QHashQStringQString);
 
 /*!
  * Constructs a new SugarSoap object.
- * \param strurl SugarCRM SOAP API URL
- * \param[in] sid    ID of the session to be reused
+ * \param[in] strurl SugarCRM SOAP API URL.
+ * \param[in] sid    ID of the session to be reused.
  */
 SugarSoap::SugarSoap(QString strurl, QString sid): soap_http(this)
 {
@@ -59,8 +59,9 @@ SugarSoap::SugarSoap(QString strurl, QString sid): soap_http(this)
 
 /*!
  * Performs a login action with existing SugarSoap object.
- * \param[in] user Login user name
- * \param[in] pass Login password
+ * \param[in] user Login user name.
+ * \param[in] pass Login password.
+ * \return Session identifier if login was successful or empty string otherwise.
  */
 QString SugarSoap::login(const QString &user, const QString &pass)
 {
@@ -89,7 +90,7 @@ QString SugarSoap::login(const QString &user, const QString &pass)
   soap_request.addMethodArgument(user_auth);
   soap_request.addMethodArgument("application_name", "", "Akonadi");
 
-  /*!
+  /*
    * Connects responseReady() event in QtSoapHttpTransport to
    * getLoginResponse() method in this
    */
@@ -109,7 +110,7 @@ QString SugarSoap::login(const QString &user, const QString &pass)
 }
 
 /*!
- * Handles server response after a login request
+ * Handles server response after a login request to check if login was successful.
  */
 void SugarSoap::getLoginResponse()
 {
@@ -146,6 +147,10 @@ void SugarSoap::getLoginResponse()
   }
 }
 
+/*!
+ * Queries the list of available modules from SugarCRM.
+ * \return List of modules supported by SugarCrmResource that are also available at SugarCRM.
+ */
 QStringList SugarSoap::getModules()
 {
   QStringList modules;
@@ -206,8 +211,9 @@ QStringList SugarSoap::getModules()
 }
 
 /*!
- * Requests an entry list
- * \param[in] module Module you want to get data from
+ * Requests list of ids from entries that belong to a module.
+ * \param[in] module Module you want to get data from.
+ * \param[in] last_sync Time of last synchronization or NULL to get all entries.
  */
 QVector<QMap<QString, QString > >* SugarSoap::getEntries(QString module, QDateTime* last_sync)
 {
@@ -283,7 +289,7 @@ void SugarSoap::requestEntries(QObject *properties, unsigned int offset, QDateTi
   else
     soap_request.addMethodArgument("deleted", "", 0);
 
-  /*!
+  /*
    * Connects responseReady() event in QtSoapHttpTransport to
    * getResponse() method in this
    */
@@ -300,8 +306,9 @@ void SugarSoap::requestEntries(QObject *properties, unsigned int offset, QDateTi
 }
 
 /*!
- * Requests an entry list
- * \param[in] module Module you want to get data from
+ * Requests an item from a SugarCRM module.
+ * \param[in] module Module that entry belongs to.
+ * \param[in] id Identifier of the entry that is being requested.
  */
 QHash<QString, QString>* SugarSoap::getEntry(QString module, const QString &id)
 {
@@ -348,7 +355,7 @@ QHash<QString, QString>* SugarSoap::getEntry(QString module, const QString &id)
 
   /*!
    * Connects responseReady() event in QtSoapHttpTransport to
-   * getResponse() method in this
+   * getResponse() method in <code>this</code>.
    */
   QObject *properties = new QObject;
   properties->setProperty("module", module);
@@ -373,6 +380,12 @@ QHash<QString, QString>* SugarSoap::getEntry(QString module, const QString &id)
   return entry;
 }
 
+/*!
+ * Updates a SugarCRM entry with new data or creates it if <code>id</code> is <code>NULL</code>.
+ * \param[in] module Module that entry belongs to.
+ * \param[in] entry Array of key->value pairs containing SugarCRM entry attributes and their values.
+ * \param[in,out] id Identifier of the entry that is going to be modified. If <code>NULL</code>, a new entry is created and its identifier is stored in this parameter.
+ */
 bool SugarSoap::editEntry(QString module, QHash< QString, QString > entry, QString* id)
 {
   // Check that the request module is one of the ones we allow
@@ -422,7 +435,7 @@ bool SugarSoap::editEntry(QString module, QHash< QString, QString > entry, QStri
 
   soap_request.addMethodArgument(name_value_list);
 
-  /*!
+  /*
    * Connects responseReady() event in QtSoapHttpTransport to
    * getResponse() method in this
    */
@@ -448,7 +461,10 @@ bool SugarSoap::editEntry(QString module, QHash< QString, QString > entry, QStri
   return properties.property("return_value").toBool();
 }
 
-// TODO other signals should call this one to check return value
+/*!
+ * Executed when a SOAP request finishes to check its return value which is stored in <code>return_value</code> attribute of properties parameter.
+ * \param[out] properties A pointer to a QObject object where SOAP return value will be stored in a <code>return_value</code> boolean attribute.
+ */
 void SugarSoap::getResponse(QObject *properties)
 {
   // Get response
@@ -482,7 +498,8 @@ void SugarSoap::getResponse(QObject *properties)
 }
 
 /*!
- * Handles server response after request
+ * Receives a block of entries returned by <code>get_entry_list</code> SOAP request and return next block if needed.
+ * \param[in,out] properties A pointer to a QObject object containing to properties: a QDateTime object called <code>last_sync</code> representing time of the previous sync before this one (or NULL) and a QVector\<QMap\<QString, QString\>\> object called <code>entires</code> where new entires will be appended.
  */
 void SugarSoap::entriesReady(QObject* properties)
 {
@@ -537,6 +554,10 @@ void SugarSoap::entriesReady(QObject* properties)
     delete last_sync;
 }
 
+/*!
+ * Receives an entry returned by <code>get_entry</code> SOAP request.
+ * \param[in,out] properties A pointer to a QObject object containing a QString attribute called <code>module</code> whose value is the module this item belongs to. Another QHash\<QString, QString\> attribute called <code>entry</code> is created to store an array of key->value pairs containing SugarCRM entry attributes and their values.
+ */
 void SugarSoap::entryReady(QObject* properties)
 {
   QString module = properties->property("module").toString();

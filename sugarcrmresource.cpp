@@ -48,9 +48,9 @@
 using namespace Akonadi;
 
 /*!
- * \class SugarSoap
- * \brief The SugarCrmResource class handles is the main class that is queried by Akonadi
-*/
+ * \class SugarCrmResource
+ * \brief The SugarCrmResource class is the main class that is queried by Akonadi.
+ */
 
 /*!
  * Constructs a new SugarCrmSource object.
@@ -137,6 +137,10 @@ SugarCrmResource::~SugarCrmResource()
 {
 }
 
+/*!
+ * Called from constructor when resource was already configured to
+ * know which Akonadi collections belong to this resource.
+ */
 void SugarCrmResource::resourceCollectionsRetrieved(KJob *job)
 {
   CollectionFetchJob *fetchJob = qobject_cast<CollectionFetchJob*>(job);
@@ -159,6 +163,10 @@ void SugarCrmResource::resourceCollectionsRetrieved(KJob *job)
     QTimer::singleShot(Settings::self()->updateInterval()*1000, this, SLOT(update()));
 }
 
+/*!
+ * This method is executed periodically to fetch third-party updates
+ * from SugarCRM to apply them to Akonadi.
+ */
 void SugarCrmResource::update()
 {
   QMapIterator<QString, resource_collection> rc(resource_collections);
@@ -260,7 +268,7 @@ void SugarCrmResource::update()
 }
 
 /*!
- * Called by Akonadi to know which collections we are going to provide
+ * Called by Akonadi to know which collections this resource provides.
  */
 void SugarCrmResource::retrieveCollections()
 {
@@ -298,7 +306,7 @@ void SugarCrmResource::retrieveCollections()
 
 /*!
  * Called by Akonadi to retrieve items from a collection
- * \param[in] collection Collection we want to retrieve items to
+ * \param[in] collection Collection which requested items belong to.
  */
 void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
 {
@@ -346,6 +354,11 @@ void SugarCrmResource::retrieveItems( const Akonadi::Collection &collection )
   }
 }
 
+/*!
+ * Used to update last synchronization time recorded in collection.
+ * \param[in] collection Collection to update.
+ * \param[in,out] time Last synchronization time to set in collection.
+ */
 void SugarCrmResource::updateCollectionSyncTime(Collection collection, QDateTime time)
 {
   *(collection.attribute<DateTimeAttribute>(Collection::AddIfMissing)) = time;
@@ -360,9 +373,9 @@ void SugarCrmResource::finishUpdateCollectionSyncTime(KJob *job)
 }
 
 /*!
- * Called by Akonadi when it wants to retrieve the whole data of a item
- * \param[in] item  the item
- * \param[in] parts item parts that need to be retrieved (not used)
+ * Called by Akonadi when it wants to retrieve the whole data of an item.
+ * \param[in] item The item whose that is requested.
+ * \param[in] parts Item parts that need to be retrieved (not used).
  */
 bool SugarCrmResource::retrieveItem( const Akonadi::Item &item, const QSet<QByteArray> &parts )
 {
@@ -389,10 +402,10 @@ bool SugarCrmResource::retrieveItem( const Akonadi::Item &item, const QSet<QByte
 
 /*!
  * Receives an an Akonadi::Item and a SOAP assocative array that
- * contains an addreess book contact to be set as item's payload
- * \param[in] soapItem The associative array containing an address book contact
- * \param[in] item the item whom payload will be populated
- * \return A new Akonadi::Item with its payload
+ * contains an addreess book contact to be set as item's payload.
+ * \param[in] soapItem The associative array containing an address book contact.
+ * \param[in] item The item whose payload will be populated.
+ * \return A new Akonadi::Item with its payload.
  */
 Item SugarCrmResource::contactPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item)
 {
@@ -470,10 +483,10 @@ Item SugarCrmResource::contactPayload(const QHash<QString, QString> &soapItem, c
 
 /*!
  * Receives an Akonadi::Item containing KABC::Addressee payload and
- * converts this payload to a SOAP assocative array that to be stored
- * in SugarCRM
- * \param[in] item the item whose payload that will be converted
- * \return A new QHash dictionary with item attributes
+ * converts this payload to a SOAP assocative array to be stored
+ * in SugarCRM.
+ * \param[in] item The item whose payload will be converted.
+ * \return A new QHash dictionary with item attributes.
  */
 QHash<QString, QString> SugarCrmResource::contactSoap(const Akonadi::Item &item)
 {
@@ -527,10 +540,10 @@ QHash<QString, QString> SugarCrmResource::contactSoap(const Akonadi::Item &item)
 
 /*!
  * Receives an Akonadi::Item and a SOAP assocative array that
- * contains a calendar task to be set as item's payload
- * \param[in] soapItem The associative array containing a calendar task
- * \param[in] item the item whom payload will be populated
- * \return A new Akonadi::Item with its payload
+ * contains a calendar task to be set as item's payload.
+ * \param[in] soapItem The associative array containing a calendar task.
+ * \param[in] item The item whose payload will be populated.
+ * \return A new Akonadi::Item with its payload.
  */
 Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item)
 {
@@ -583,11 +596,11 @@ Item SugarCrmResource::taskPayload(const QHash<QString, QString> &soapItem, cons
 }
 
 /*!
- * Receives an Akonadi::Item containing KABC::Addressee payload and
- * converts this payload to a SOAP assocative array that to be stored
- * in SugarCRM
- * \param[in] item the item whose payload that will be converted
- * \return A new QHash dictionary with item attributes
+ * Receives an Akonadi::Item containing KCalCore::Todo payload and
+ * converts this payload to a SOAP assocative array to be stored
+ * in SugarCRM.
+ * \param[in] item The item whose payload will be converted.
+ * \return A new QHash dictionary with item attributes.
  */
 QHash<QString, QString> SugarCrmResource::taskSoap(const Akonadi::Item &item)
 {
@@ -646,10 +659,10 @@ QHash<QString, QString> SugarCrmResource::taskSoap(const Akonadi::Item &item)
 
 /*!
  * Receives an Akonadi::Item and a SOAP assocative array that
- * contains a calendar event to be set as item's payload
- * \param[in] soapItem The associative array containing a calendar event
- * \param[in] item the item whom payload will be populated
- * \return A new Akonadi::Item with its payload
+ * contains a calendar event to be set as item's payload.
+ * \param[in] soapItem The associative array containing a calendar event.
+ * \param[in] item The item whose payload will be populated.
+ * \return A new Akonadi::Item with its payload.
  */
 Item SugarCrmResource::bookingPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item)
 {
@@ -703,11 +716,11 @@ Item SugarCrmResource::bookingPayload(const QHash<QString, QString> &soapItem, c
 }
 
 /*!
- * Receives an Akonadi::Item containing KABC::Addressee payload and
- * converts this payload to a SOAP assocative array that to be stored
- * in SugarCRM
- * \param[in] item the item whose payload that will be converted
- * \return A new QHash dictionary with item attributes
+ * Receives an Akonadi::Item containing KCalCore::Event payload and
+ * converts this payload to a SOAP assocative array to be stored
+ * in SugarCRM.
+ * \param[in] item The item whose payload will be converted.
+ * \return A new QHash dictionary with item attributes.
  */
 QHash<QString, QString> SugarCrmResource::bookingSoap(const Akonadi::Item &item)
 {
@@ -748,6 +761,13 @@ QHash<QString, QString> SugarCrmResource::bookingSoap(const Akonadi::Item &item)
   return soapItem;
 }
 
+/*!
+ * Receives an Akonadi::Item and a SOAP assocative array that
+ * contains a project to be set as item's payload.
+ * \param[in] soapItem The associative array containing a calendar task.
+ * \param[in] item The item whom payload will be populated.
+ * \return A new Akonadi::Item with its payload.
+ */
 Item SugarCrmResource::projectPayload(const QHash<QString, QString> &soapItem, const Akonadi::Item &item)
 {
   KCalCore::Todo::Ptr project(new KCalCore::Todo);
@@ -788,6 +808,13 @@ Item SugarCrmResource::projectPayload(const QHash<QString, QString> &soapItem, c
   return newItem;
 }
 
+/*!
+ * Receives an Akonadi::Item containing KCalCore::Todo payload and
+ * converts this payload to a SOAP assocative array to be stored
+ * in SugarCRM as a project.
+ * \param[in] item The item whose payload will be converted.
+ * \return A new QHash dictionary with item attributes.
+ */
 QHash<QString, QString> SugarCrmResource::projectSoap(const Akonadi::Item &item)
 {
   const KCalCore::Todo::Ptr &payload = item.payload<KCalCore::Todo::Ptr>();
@@ -835,7 +862,7 @@ void SugarCrmResource::aboutToQuit()
  * Called by Akonadi to configure plugin.
  * Emits a configurationDialogAccepted() signal if it was successful,
  * configurationDialogRejected() otherwise.
- * \param[in] windowId Parent window
+ * \param[in] windowId Parent window.
  */
 void SugarCrmResource::configure(const WId windowId)
 {
@@ -891,6 +918,12 @@ void SugarCrmResource::configure(const WId windowId)
     synchronize();
 }
 
+/*!
+ * Executed by Akonadi when a new item has been added an needs to be
+ * addad to SugarCRM too.
+ * \param[in] item Item to add to SugarCRM.
+ * \param[in] collection Collection whose item belongs to.
+ */
 void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Collection &collection )
 {
   QString mod = collection.remoteId();
@@ -924,6 +957,12 @@ void SugarCrmResource::itemAdded( const Akonadi::Item &item, const Akonadi::Coll
   delete id;
 }
 
+/*!
+ * Executed by Akonadi when an existing item has been modified
+ * in Akonadi and needs to be modified in SugarCRM too.
+ * \param[in] item Item that has been modified.
+ * \param[in] parts Item parts that need to be modified (not used).
+ */
 void SugarCrmResource::itemChanged( const Akonadi::Item &item, const QSet<QByteArray> &parts )
 {
   Q_UNUSED(parts);
@@ -945,6 +984,11 @@ void SugarCrmResource::itemChanged( const Akonadi::Item &item, const QSet<QByteA
   delete remoteId;
 }
 
+/*!
+ * Executed by Akonadi when an existing item has been removed
+ * from Akonadi and needs to be removed from SugarCRM too.
+ * \param[in] item Item to add to SugarCRM.
+ */
 void SugarCrmResource::itemRemoved( const Akonadi::Item &item )
 {
   QString mod = item.remoteId().replace(QRegExp(".*@"), "");

@@ -67,17 +67,25 @@ class SugarCrmResource : public Akonadi::ResourceBase,
     void updateCollectionSyncTime(Akonadi::Collection collection, QDateTime time);
 };
 
+/*! Structure containing module-dependent information. */
 struct module
 {
+  /*! List of strings containing the fields this module requires. */
   QStringList fields;
+  /*! List of media types implemented by this module. */
   QStringList mimes;
+  /*! Pointer to the module-dependent method to convert from a SugarCRM SOAP struct to a kdepimlibs object. */
   Akonadi::Item (SugarCrmResource::*payload_function)(const QHash<QString, QString> &, const Akonadi::Item &);
+  /*! Pointer to the module-dependent method to convert from a kdepimlibs object to a SOAP struct. */
   QHash<QString, QString> (SugarCrmResource::*soap_function)(const Akonadi::Item &);
 };
 
+/*! Structure used to store Akonadi id and time of last synchronization for each SugarCRM module. */
 struct resource_collection
 {
+  /*! Identifier of the collection in Akonadi. */
   Akonadi::Collection::Id id;
+  /*! Last time this collection was synchronized. */
   QDateTime *last_sync;
 };
 

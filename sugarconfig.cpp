@@ -21,7 +21,14 @@
 #include "sugarconfig.h"
 #include "ui_sugarconfig.h"
 
-// TODO: Validate input
+/*!
+ * \class SugarConfig
+ * \brief Class to show resource configuration dialog box. Methods in this class only get and set values from dialog box, not the actual configuration values as they are stored.
+ */
+
+/*!
+ * Constructs a new SugarConfig object.
+ */
 SugarConfig::SugarConfig(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::SugarConfig)
@@ -34,21 +41,33 @@ SugarConfig::~SugarConfig()
     delete ui;
 }
 
+/*!
+ * \return The URL that has been entered in dialog box.
+ */
 QString SugarConfig::url()
 {
     return ui->url->text();
 }
 
+/*!
+ * \return The user name that has been entered to log in to entered URL.
+ */
 QString SugarConfig::username()
 {
     return ui->username->text();
 }
 
+/*!
+ * \return The appropriate password for entered user name.
+ */
 QString SugarConfig::password()
 {
     return ui->password->text();
 }
 
+/*!
+ * \return Selected time to wait between updates from server.
+ */
 unsigned char SugarConfig::updateInterval()
 {
     if (ui->updateInterval->value() > 255)
@@ -56,32 +75,50 @@ unsigned char SugarConfig::updateInterval()
     return ui->updateInterval->value();
 }
 
+/*!
+ * \return Units used for selected time between updates.
+ */
 UpdateUnits SugarConfig::updateUnits()
 {
     return (UpdateUnits)ui->updateUnits->currentIndex();
 }
 
+/*!
+ * \param[in] s URL to set in dialog box.
+ */
 void SugarConfig::setUrl(QString s)
 {
     ui->url->setText(s);
 }
 
+/*!
+ * \param[in] s User name to set in dialog box.
+ */
 void SugarConfig::setUsername(QString s)
 {
     ui->username->setText(s);
 }
 
+/*!
+ * \param[in] s Password to set in dialog box.
+ */
 void SugarConfig::setPassword(QString s)
 {
     ui->password->setText(s);
 }
 
+/*!
+ * \param[in] i Sets dialog box value for time interval to pull updates from SugarCRM.
+ */
 void SugarConfig::setUpdateInterval(unsigned int i)
 {
     ui->updateInterval->setValue(i);
 }
 
-void SugarConfig::setUpdateUnits(UpdateUnits r)
+/*!
+ * \param[in] u Sets units for update interval in dialog box.
+ */
+void SugarConfig::setUpdateUnits(UpdateUnits u)
 {
-    ui->updateUnits->setCurrentIndex(r);
+    ui->updateUnits->setCurrentIndex(u);
 }

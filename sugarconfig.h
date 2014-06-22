@@ -44,7 +44,7 @@ public:
     void setUsername(QString s);
     void setPassword(QString s);
     void setUpdateInterval(unsigned int i);
-    void setUpdateUnits(UpdateUnits r);
+    void setUpdateUnits(UpdateUnits u);
 
 private:
     Ui::SugarConfig *ui;

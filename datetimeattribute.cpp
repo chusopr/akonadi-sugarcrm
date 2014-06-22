@@ -20,43 +20,78 @@
 
 #include "datetimeattribute.h"
 
-using namespace Akonadi;
+namespace Akonadi
+{
 
+/*!
+ * \class DateTimeAttribute
+ * \brief Akonadi custom attribute representing a QDateTime object.
+ */
+
+/*!
+ * Constructs a new uninitialized Akonadi attribute.
+ */
 DateTimeAttribute::DateTimeAttribute()
 {
 }
 
+/*!
+ * Constructs a new Akonadi attribute.
+ * \param[in] dt QDateTime value of the new attribute.
+ */
 DateTimeAttribute::DateTimeAttribute(QDateTime dt): datetime(dt)
 {
 }
 
+/*!
+ * \return A QByteArray representation of the attribute.
+ */
 QByteArray DateTimeAttribute::type() const
 {
   return "DATETIME";
 }
 
+/*!
+ * \return A new DateTimeAttribute with the same value as the current one.
+ */
 DateTimeAttribute * DateTimeAttribute::clone() const
 {
   return new DateTimeAttribute(datetime);
 }
 
+/*!
+ * \return A serialized representation of the attribute value.
+ */
 QByteArray DateTimeAttribute::serialized() const
 {
   return datetime.toString(Qt::ISODate).toAscii();
 }
 
+/*!
+ * Changes stored value to the one passed as parameter.
+ * \param[in] s A serialized representation of a value as returned by DateTimeAttribute::serialized().
+ */
 void DateTimeAttribute::deserialize(const QByteArray &s)
 {
   datetime = QDateTime::fromString(s, Qt::ISODate);
 }
 
+/*!
+ * \return QDateTime value stored in attribute.
+ */
 QDateTime DateTimeAttribute::value()
 {
   return datetime;
 }
 
+/*!
+ * Allows to change DateTimeAttribute value by assigning a QDateTime to it.
+ * \param[in] dt QDateTime value to set attribute to.
+ */
 DateTimeAttribute *DateTimeAttribute::operator= (const QDateTime &dt)
 {
   datetime = dt;
   return this;
+}
+
 }
