@@ -589,13 +589,13 @@ void SugarSoap::entryReady(QObject* properties)
       QHash<QString, QString> entry;
       // Print returned data
       QStringList fields = SugarCrmResource::Modules[module].fields;
-      const QtSoapStruct *soapEntry = (QtSoapStruct*)&(response["entry_list"][0]);
+      const QtSoapStruct &soapEntry = (const QtSoapStruct&)(response["entry_list"][0]);
       // Show this entry's data
-      for (int j=0; j<(*soapEntry)["name_value_list"].count(); j++)
+      for (int j=0; j<soapEntry["name_value_list"].count(); j++)
       {
-        const QtSoapStruct *field = (QtSoapStruct*)&((*soapEntry)["name_value_list"][j]);
-        if (fields.contains((*field)["name"].value().toString()))
-          entry[(*field)["name"].value().toString()] = (*field)["value"].value().toString();
+        const QtSoapStruct &field = (const QtSoapStruct&)(soapEntry["name_value_list"][j]);
+        if (fields.contains(field["name"].value().toString()))
+          entry[field["name"].value().toString()] = field["value"].value().toString();
       }
       properties->setProperty("entry", QVariant::fromValue<QHash<QString, QString> >(entry));
     }
